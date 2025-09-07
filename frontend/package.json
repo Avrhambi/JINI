@@ -1,10 +1,10 @@
 {
-  "name": "jini",
+  "name": "frontend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "emulator -avd Pixel_6_API & npx expo start --android",
+    "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
@@ -12,7 +12,14 @@
     "expo": "~53.0.22",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
-    "react-native": "0.79.6"
+    "react-native": "0.79.6",
+    "expo-router": "~5.1.5",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "expo-linking": "~7.1.7",
+    "expo-constants": "~17.1.7",
+    "expo-auth-session": "~6.2.1",
+    "expo-secure-store": "~14.2.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

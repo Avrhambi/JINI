@@ -1,11 +1,12 @@
 {
   "expo": {
+    "scheme": "JINI",
     "name": "JINI",
     "slug": "JINI",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyl    `e": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -24,6 +25,13 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "googleClientId": "554785841727-78co02n3c0ith0vbjptnbtfh8m758eda.apps.googleusercontent.com"
     }
   }
 }
