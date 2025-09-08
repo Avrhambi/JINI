@@ -1,14 +1,73 @@
 import React from "react";
-import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityIndicator} from "react-native";
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
+import * as Progress from 'react-native-progress';
 
 
 
 
 export default function SignUpScreen() {
-    const [Username, Password, ConfirmPassword, FirstName, LastName, Email] = React.useState("");
-    const navigation = useNavigation();  
+  const [Username, setUsername] = React.useState("");
+  const [Password, setPassword] = React.useState("");
+  const [ConfirmPassword, setConfirmPassword] = React.useState("");
+  const [FirstName, setFirstName] = React.useState("");
+  const [LastName, setLastName] = React.useState("");
+  const [Email, setEmail] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const navigation = useNavigation();
+  const allFieldsFilled = Username && Email && Password && ConfirmPassword && FirstName && LastName;
+  const passwordsMatch = Password === ConfirmPassword;
+
+  const handle_signup = () => {
+    setError('');
+    if (!allFieldsFilled) {
+      setError('All fields are required.');
+      return;
+    }
+    if (!passwordsMatch) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    const timeout = (ms) =>
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out")), ms)
+    );
+
+  Promise.race([
+    fetch('http://192.168.1.144:8000/auth/signup', {   // no trailing slash needed
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({FirstName, LastName, Email, Username, Password })
+    }),
+    timeout(8000)
+  ])
+    .then(async (response) => {
+      if (!response || !response.ok) {
+        const data = response ? await response.json() : {};
+        setLoading(false);
+        setError(data.detail || "Signup failed. Please try again.");
+        return;
+      }
+
+      setLoading(false);
+      navigation.navigate('Home');
+    })
+    .catch((error) => {
+      setLoading(false);
+      if (error.message === "Request timed out") {
+        setError("Server took too long to respond. Please try again.");
+      } else {
+        setError("Network error. Please try again.");
+      }
+    });
+  };
+
     return (
     <LinearGradient
       colors={["#E1E6E7", "#ADC3C7", "#424242"]}
@@ -26,47 +85,60 @@ export default function SignUpScreen() {
         </View>
       
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="First Name" placeholderTextColor="#ffffff" value={FirstName}/>
+          <TextInput style={styles.fields} placeholder="First Name" placeholderTextColor="#ffffff" value={FirstName} onChangeText={setFirstName} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Last Name" placeholderTextColor="#ffffff" value={LastName}/>
+          <TextInput style={styles.fields} placeholder="Last Name" placeholderTextColor="#ffffff" value={LastName} onChangeText={setLastName} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email}/>
+          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={Username}/>
+          <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={Username} onChangeText={setUsername} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password}/>
+          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Confirm Password" placeholderTextColor="#ffffff" value={ConfirmPassword}/>
+          <TextInput style={styles.fields} placeholder="Confirm Password" placeholderTextColor="#ffffff" value={ConfirmPassword} onChangeText={setConfirmPassword} />
         </View>
+
+            
         <View style={styles.signupBox}>
-          <TouchableOpacity  onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.signup}>SIGN UP</Text>
-          </TouchableOpacity>
-          <View style={styles.googleButton}>
-            <Image
-            source={require("../../assets/search.png")} // path to your PNG
-            style={styles.googleIcon}
-            resizeMode="center" 
-            />
-            <Text style={styles.info}>Continue with Google</Text>
-          </View>            
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
+
+        {loading ? (<Progress.Circle size={40} indeterminate={true} color="#007AFF" style={{ marginVertical: 12 }} />) : (
+          <View>
+            <TouchableOpacity  onPress={handle_signup}>
+              <Text style={styles.signup}>SIGN UP</Text>
+            </TouchableOpacity>
+
+            <View style={styles.bottomSection}>
+              <View style={styles.googleButton}>
+                <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+                  <Image
+                    source={require("../../assets/search.png")} // path to your PNG
+                    style={styles.googleIcon}
+                    resizeMode="contain" // ensures it scales properly}
+                  />
+                  <Text style={styles.info}>Continue with Google</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          )}
       </View>
+
     </LinearGradient>
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 20,   // like in your figma design
+    backgroundColor: "transparent"
   },
   middleSection: {
     flex: 1,
@@ -77,7 +149,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontFamily: "Bitter-Regular",
     color: "#000",
-    marginBottom: 0,
+    marginTop: 10,
   },
   topSection: {
     flex: 1,
@@ -113,7 +185,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 20,
-    top: 60,
+    top: 0,
 
   },
   logo: {
@@ -134,8 +206,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 32,
     marginBottom: 0,
-    position: "relative",
-    top: 20, 
+    position: "absolute",
+    alignContent: 'center',
+    top: 20,
   },
   signupBox: {
     alignItems: 'center',
@@ -150,13 +223,22 @@ const styles = StyleSheet.create({
     color: "#ffffff",
 
   },fieldsBox: {
-     fontSize: 20,
     backgroundColor: "#2D5C5C",
     borderRadius: 10,
     width: "80%",
     paddingVertical: 10,
     marginBottom: 20,
-    
+    paddingHorizontal: 10,
   },
-
+  bottomSection: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingBottom: 20,
+  },
+  error: {
+    color: 'red',
+    textAlign: 'center',
+    fontSize: 16,
+  },
 });
