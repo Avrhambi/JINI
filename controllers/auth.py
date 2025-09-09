@@ -3,7 +3,7 @@ from models.auth import SignupRequest
 from services.user import create_user_service, get_user_by_email, get_user_by_google_id
 from utils.auth_utils import *
 from pymongo.errors import DuplicateKeyError
-from models.auth import LoginRequest,LoginResponse
+from models.auth import LoginRequest
 
 def auth_signup(user: SignupRequest):
     """
@@ -13,16 +13,21 @@ def auth_signup(user: SignupRequest):
         new_user = create_user_service(user.dict())
     except DuplicateKeyError:
         raise HTTPException(status_code=400,detail="Email already registered")
-
+    
+    access_token = create_access_token({"user_id": new_user.id})
+    refresh_token = create_refresh_token({"user_id": new_user.id})
 
     return {
-        "data": {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
             "id": new_user.id,
-            "username": new_user.username,
-            "email": new_user.email,
+            "first_name": new_user.first_name,
+            "last_name": new_user.last_name
+,            "email": new_user.email,
         },
     }
-
 
 def auth_login(user_data: LoginRequest):
     """
@@ -46,11 +51,10 @@ def auth_login(user_data: LoginRequest):
         "token_type": "bearer",
         "user": {
             "id": user.id,
-            "username": user.username,
-            "email": user.email
+            "first_name": user.first_name,
+            "last_name": user.last_name
         }
     }
-
 
 def auth_google_login(google_token: str):
     """
@@ -101,19 +105,3 @@ def auth_google_login(google_token: str):
         }
     }
 
-
-def auth_refresh_token(refresh_token: str):
-    try:
-        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("user_id")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
-        # Create new access token
-        new_access_token = create_access_token({"user_id": user_id})
-        return {"access_token": new_access_token, "token_type": "bearer"}
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Refresh token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
-    

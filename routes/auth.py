@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends
-from models.auth import SignupRequest, LoginResponse
+from fastapi import APIRouter
+from models.auth import SignupRequest
 from controllers.auth import *
-from middleware.auth import verify_token
+from middleware.auth import auth_refresh_token
 
 auth_router = APIRouter()
 
@@ -17,14 +17,6 @@ def login(user: LoginRequest):
 def login(google_token: str):
     return auth_google_login(google_token)
 
-@auth_router.post("/logout")    
-def logout(user: LoginResponse = Depends(verify_token)):
-    """
-    Logs out the user.
-    Since JWT is stateless, logout just means the client should delete the token.
-    """
-    return {"message": f"User {user.username} logged out successfully. Remove token from client."}
-    
 @auth_router.post("/auth/refresh")
 def refresh_token(refresh_token: str):
     return auth_refresh_token(refresh_token)
