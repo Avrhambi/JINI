@@ -1,11 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from routes.auth import auth_router
+from routes.call import call_router
 from config import db
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+from middleware.auth import verify_token
 
 
 
-
+UPLOAD_DIR = Path("audios")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 # start the server
 app = FastAPI()
@@ -19,12 +23,20 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(call_router, prefix="/calls", tags=["Calls"])
 # app.include_router(user_routes.router, prefix="/users", tags=["Users"])
-# app.include_router(call_routes.router, prefix="/calls", tags=["Calls"])
+
+
+
+# @app.get("/test/protected_request")
+# def protected_request(user=Depends(verify_token)):
+#     return {"message": "Protected request successful ✅", "user": {"id": user.id, "email": user.email}}
+ 
 
 @app.get("/")
 async def root():
     return {"message": "Hello JINI Backend!"}
+
 
 #check connection to DB
 @app.on_event("startup")
@@ -37,7 +49,7 @@ def startup_db_client():
         print("❌ Could not connect to MongoDB:", e)
         raise
 
-#close connection to DB
-@app.on_event("shutdown")
-def shutdown_db_client():
-    db.close_db()
+# #close connection to DB
+# @app.on_event("shutdown")
+# def shutdown_db_client():
+#     db.close_db()
