@@ -1,28 +1,46 @@
 import React, {useEffect, useState} from "react";
-import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, FlatList } from "react-native";
+import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, FlatList, Button, Alert } from "react-native";
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import {Audio} from "expo-av"
+import { apiFetch } from "../../utils/api";
 
 
-function millisToMinutesAndSeconds(millis) {
-  const minutes = Math.floor(millis / 60000);
-  const seconds = Math.floor((millis % 60000) / 1000);
-  return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-}
-
-async function getAudioDuration(uri) {
-  const { sound, status } = await Audio.Sound.createAsync(uri);
-  const duration = status.durationMillis;
-  await sound.unloadAsync();
-  return duration;
-}
 
 
 export default function HomeScreen() {
   const [KeyWord, setKeyWord] = useState("");
   const [records, setRecords] = useState([]);
   const navigation = useNavigation();
+
+  
+  function millisToMinutesAndSeconds(millis) {
+    const minutes = Math.floor(millis / 60000);
+    const seconds = Math.floor((millis % 60000) / 1000);
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  }
+
+
+  async function getAudioDuration(uri) {
+    const { sound, status } = await Audio.Sound.createAsync(uri);
+    const duration = status.durationMillis;
+    await sound.unloadAsync();
+    return duration;
+  }
+  // const testProtectedRequest = async () => {
+  //   try {
+  //     const { ok, data } = await apiFetch('/test/protected_request', { method: 'GET' });
+
+  //     if (!ok) {
+  //       Alert.alert('Request Failed', JSON.stringify(data));
+  //     } else {
+  //       Alert.alert('Success', JSON.stringify(data));
+  //     }
+  //   } catch (err) {
+  //     Alert.alert('Error', err.message);
+  //   }
+  // };
+
   useEffect(() =>{
     async function fetchRecords() {
       const data = [
@@ -63,6 +81,9 @@ export default function HomeScreen() {
       locations={[0.25, 0.63, 1]}   // match your figma stops
       style={styles.container}
     >
+      {/* <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Button title="Test Protected Request" onPress={testProtectedRequest} />
+      </View> */}
       <View style={styles.topSection}>
         <View style = {styles.logo}>
         <Text style={styles.title}>JINI</Text>

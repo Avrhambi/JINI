@@ -5,14 +5,18 @@ const API_BASE_URL = 'http://192.168.1.144:8000'; // your backend
 // Generic fetch wrapper
 export const apiFetch = async (endpoint, options = {}) => {
   let accessToken = await getAccessToken();
+  console.log (accessToken)
+  console.log(endpoint)
+  console.log("before token",options)
 
   // Add Authorization header
   options.headers = {
     ...(options.headers || {}),
     'Content-Type': 'application/json',
-    Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
+    Authorization: `Bearer ${accessToken}`
   };
 
+  console.log("after token", options)
   let response = await fetch(`${API_BASE_URL}${endpoint}`, options);
 
   // If token expired, try refresh
@@ -35,7 +39,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     }
 
     const refreshData = await refreshResponse.json();
-    accessToken = refreshData.access_token;
+    accessToken = refreshData['access_token'];
     await saveTokens(accessToken, refreshToken);
 
     // Retry original request with new access token

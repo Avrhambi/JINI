@@ -3,12 +3,14 @@ import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityInd
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import * as Progress from 'react-native-progress';
+import {  saveUserCredentials } from '../../utils/auth';
+
 
 
 
 
 export default function SignUpScreen() {
-  const [Username, setUsername] = React.useState("");
+  const [UserName, setUsername] = React.useState("");
   const [Password, setPassword] = React.useState("");
   const [ConfirmPassword, setConfirmPassword] = React.useState("");
   const [FirstName, setFirstName] = React.useState("");
@@ -17,7 +19,7 @@ export default function SignUpScreen() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const navigation = useNavigation();
-  const allFieldsFilled = Username && Email && Password && ConfirmPassword && FirstName && LastName;
+  const allFieldsFilled = UserName && Email && Password && ConfirmPassword && FirstName && LastName;
   const passwordsMatch = Password === ConfirmPassword;
 
   const handle_signup = () => {
@@ -43,7 +45,7 @@ export default function SignUpScreen() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({FirstName, LastName, Email, Username, Password })
+      body: JSON.stringify({username:UserName,first_name:FirstName, last_name:LastName, email:Email, password:Password })
     }),
     timeout(8000)
   ])
@@ -54,7 +56,8 @@ export default function SignUpScreen() {
         setError(data.detail || "Signup failed. Please try again.");
         return;
       }
-
+      const data = await response.json();
+      saveUserCredentials(data["access_token"],data["refresh_token"])
       setLoading(false);
       navigation.navigate('Home');
     })
@@ -94,7 +97,7 @@ export default function SignUpScreen() {
           <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={Username} onChangeText={setUsername} />
+          <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={UserName} onChangeText={setUsername} />
         </View>
         <View style={styles.fieldsBox}>
           <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} />

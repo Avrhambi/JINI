@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 export const saveUserCredentials = async (accessToken, refreshToken) => {
   await SecureStore.setItemAsync("accessToken", accessToken);
   await SecureStore.setItemAsync("refreshToken", refreshToken);
-  await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfo));
+  // await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfo));
 };
 
 // Get access token
@@ -21,5 +21,5 @@ export const getRefreshToken = async () => {
 export const removeUserCredentials = async () => {
   await SecureStore.deleteItemAsync("accessToken");
   await SecureStore.deleteItemAsync("refreshToken");
-  await SecureStore.deleteItemAsync('userInfo');
+  // await SecureStore.deleteItemAsync('userInfo');
 };

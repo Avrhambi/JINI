@@ -10,8 +10,8 @@ import * as Progress from 'react-native-progress';
 
 
 export default function LoginScreen() {
-    const [Email, setEmail] = React.useState("");
-    const [Password, setPassword] = React.useState("");
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
     const navigation = useNavigation();
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
@@ -33,7 +33,7 @@ export default function LoginScreen() {
         fetch('http://192.168.1.144:8000/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ Email, Password })
+          body: JSON.stringify({ email, password})
         }),
         timeout(8000)
       ])
@@ -45,7 +45,8 @@ export default function LoginScreen() {
         setError(data.detail || "Login failed. Please try again.");
         return;
       }
-
+      const data = await response.json();
+      saveUserCredentials(data["access_token"],data["refresh_token"])
       setLoading(false);
       navigation.navigate('Home');
     })
@@ -92,10 +93,10 @@ export default function LoginScreen() {
 
       <View style={styles.middleSection}>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} />
+          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={email} onChangeText={setEmail} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} />
+          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} />
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
