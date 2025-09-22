@@ -16,7 +16,7 @@ export default function LoginScreen() {
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
     const router = useRouter();
-    const allFieldsFilled = Email && Password;
+    const allFieldsFilled = email && password;
 
     const handle_login = async () => {
       setError('');
