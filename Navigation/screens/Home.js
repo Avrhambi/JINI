@@ -12,7 +12,26 @@ export default function HomeScreen() {
   const [KeyWord, setKeyWord] = useState("");
   const [records, setRecords] = useState([]);
   const navigation = useNavigation();
+  // Path to audios folder
+  const audioDir = FileSystem.documentDirectory + "audios/";
 
+  // Create folder and load saved files on app start
+  useEffect(() => {
+    (async () => {
+      const folderInfo = await FileSystem.getInfoAsync(audioDir);
+      if (!folderInfo.exists) {
+        await FileSystem.makeDirectoryAsync(audioDir, { intermediates: true });
+      }
+
+      const files = await FileSystem.readDirectoryAsync(audioDir);
+      setAudioFiles(files);
+    })();
+        return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, []);
   
   function millisToMinutesAndSeconds(millis) {
     const minutes = Math.floor(millis / 60000);
