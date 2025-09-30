@@ -68,21 +68,6 @@ export default function LoginScreen() {
 
       }
     });
-
-      //   const data = await response.json();
-      //   setLoading(false);
-      //   if (response.ok) {
-      //     // ✅ Login successful
-      //     await saveUserCredentials(data.access_token, data.refresh_token);
-      //     navigation.navigate('Home')
-
-      //   } else {
-      //     setError(data.detail || 'Login failed. Please try again.');
-      //   }
-      // } catch (error) {
-      //     setLoading(false);
-      //     setError('Network error. Please try again.');
-      // }
   };
     return (
     <LinearGradient
@@ -108,24 +93,42 @@ export default function LoginScreen() {
         <View style={styles.fieldsBox}>
           <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} />
         </View>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {loading ? (
-            (<Progress.Circle size={40} indeterminate={true} color="#007AFF" thickness ={20} style={{ marginVertical: 12 }} />)
-        ) : (
-        <TouchableOpacity onPress={handle_login}>
-          <Text style={styles.title}>LOGIN</Text>
-        </TouchableOpacity>
-        )} 
+        <View style={styles.LoginBox}>
+          <TouchableOpacity onPress={handle_login} disabled={loading} style={styles.loginButton}>
+            {loading ? (
+              <Progress.Circle 
+                size={32} 
+                indeterminate={true} 
+                color="#007AFF" 
+                thickness={3}
+                style={styles.spinner}
+              />
+            ) : (
+              <Text style={styles.title}>LOGIN</Text>
+            )}
+          </TouchableOpacity>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </View>
+        <View style={styles.googleButton}>
+          <TouchableOpacity style={styles.googleContent} onPress={() => navigation.navigate('Home')}>
+            <Image
+              source={require("../../assets/search.png")} // path to your PNG
+              style={styles.googleIcon}
+              resizeMode="contain" // ensures it scales properly
+            />
+            <Text style={styles.infoGoogle}>Continue with Google</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.bottomSection}>
-        <View style={styles.signupBox}>
-            <Text style={styles.info}>don’t have an account?{"\n"} create account here</Text>
+        <View style={styles.SignupContent}>
+            <Text style={styles.info}>Don’t have an account?</Text>
             <TouchableOpacity  onPress={() => navigation.navigate('Signup')}>
                 <Text style={styles.signup}>SIGN UP</Text>
             </TouchableOpacity>
         </View>
+        
       </View>
     </LinearGradient>
   );
@@ -140,7 +143,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontFamily: "Bitter-Regular",
     color: "#000",
-    marginTop: 20,
   },
   jini: {
     fontSize: 32,
@@ -175,7 +177,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     alignItems: "center",
-    paddingBottom: 80,
+    paddingBottom: 100,
   },
   fields: {
     fontSize: 20,
@@ -195,36 +197,77 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Bitter-Regular",
     color: "#ffffff",
-    marginBottom: 0,
-    width: "70%",
     textAlign: 'center',
   },
   logo: {
     alignItems: 'center',
   },
   signupBox: {
-    alignItems: 'center',
     marginTop: '10%',
-    marginBottom: 10,
+    marginBottom: 30,
     display: 'flex',
     flexDirection: 'column',
   },
   signup: {
-    backgroundColor: "#2D5C5C",
     fontFamily: "Bitter-Regular",
-    paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
     color: "#fff",
-    fontSize: 32,
+    fontSize: 20,
     alignItems: 'center',
-    top: 20, 
+    marginLeft: 10,
   },
-   error: {
-    color: 'red',
-    textAlign: 'center',
+    SignupContent: {
+    flexDirection: "row",   
+    alignItems: "center",   
+    justifyContent: "center",
+  },
+  error: {
+    position: 'absolute',
+    top: 50,
+    color: "red",
+    textAlign: "center",
     fontSize: 16,
   },
-  
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 10,
+  },
+  googleButton: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    width: "70%",
+    marginTop: 40,
+  },
+   infoGoogle: {
+    fontSize: 20,
+    fontFamily: "Bitter-Regular",
+    color: "#000",
+  },
+    googleContent: {
+    flexDirection: "row",   
+    alignItems: "center",   
+    justifyContent: "center",
+  },
+  LoginBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginButton: {
+    width: 120,          // fixed width
+    height: 45,          // fixed height
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  spinner: {
+    position: "absolute",
+  },
 
 });

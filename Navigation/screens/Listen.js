@@ -75,13 +75,18 @@ export default function ListenScreen() {
     style={styles.container}
     >   
         <View style={styles.topSection}>
-          <View style = {styles.logo}>
-            <Text style={styles.title}>JINI</Text>
-            <Image
-            source={require("../../assets/genie-512.png")} // path to your PNG
-            style={styles.icon}
-            resizeMode="center" // ensures it scales properly
-            />
+          <View style = {styles.menu}>  
+            <View style = {styles.logo}>
+              <Text style={styles.title}>JINI</Text>
+              <Image
+                source={require("../../assets/genie-512.png")} // path to your PNG
+                style={styles.icon}
+                resizeMode="center" // ensures it scales properly
+              />
+            </View>
+            <TouchableOpacity style={styles.buttonText} onPress={() => navigation.navigate('Login')}>
+              <Ionicons  name="log-in-outline" size = {35} color="black" ></Ionicons>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -144,7 +149,9 @@ const styles = StyleSheet.create({
   },
   logo: {
     alignItems: 'center',
-  },
+    justifyContent: 'center',
+    flex: 1,
+  },  
   title: {
     fontSize: 32,
     fontFamily: "Bitter-Regular",
@@ -190,5 +197,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 10,
 
+  },
+  buttonText: {
+    position: "absolute",     
+    right: 20,                
+    top: "50%",               
+    transform: [{ translateY: -17 }],
+
+  },
+  menu: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
 });
