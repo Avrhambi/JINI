@@ -19,6 +19,9 @@ export default function LoginScreen() {
     const allFieldsFilled = email && password;
 
     const handle_login = async () => {
+      // const BASE_URL = 'http://192.168.1.144:8000'
+      // const BASE_URL = `http://192.168.1.93:8000`
+      const BASE_URL = 'http://10.0.2.2:8000'
       setError('');
       if (!allFieldsFilled) {
         setError('All fields are required.');
@@ -30,7 +33,7 @@ export default function LoginScreen() {
         setTimeout(() => reject(new Error("Request timed out")), ms)
       );
       Promise.race([
-        fetch('http://192.168.1.144:8000/auth/login', {
+        fetch(`${BASE_URL}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password})
@@ -45,17 +48,24 @@ export default function LoginScreen() {
         setError(data.detail || "Login failed. Please try again.");
         return;
       }
-      const data = await response.json();
-      saveUserCredentials(data["access_token"],data["refresh_token"])
-      setLoading(false);
-      navigation.navigate('Home');
+      try {
+        const data = await response.json();
+        saveUserCredentials(data["access_token"],data["refresh_token"])
+        setLoading(false);
+        navigation.navigate('Home')
+      } catch (error) {
+        setError('Login error:', err);
+      }
+      ;
     })
     .catch((error) => {
       setLoading(false);
       if (error.message === "Request timed out") {
         setError("Server took too long to respond. Please try again.");
       } else {
-        setError("Network error. Please try again.");
+        console.log(error.message)
+        setError(`Network error. Please try again. ${error.message}`);
+
       }
     });
 

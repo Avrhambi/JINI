@@ -4,6 +4,7 @@ import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import {Audio} from "expo-av"
 import { apiFetch } from "../../utils/api";
+import * as FileSystem from 'expo-file-system';
 
 
 
@@ -12,6 +13,7 @@ export default function HomeScreen() {
   const [KeyWord, setKeyWord] = useState("");
   const [records, setRecords] = useState([]);
   const navigation = useNavigation();
+  
   // Path to audios folder
   const audioDir = FileSystem.documentDirectory + "audios/";
 

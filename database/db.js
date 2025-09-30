@@ -8,11 +8,12 @@ export function initDatabase() {
       `CREATE TABLE IF NOT EXISTS CallRecord (
         id TEXT PRIMARY KEY NOT NULL,
         user_id TEXT NOT NULL,
+        caller TEXT NOT NULL,
         audio_file_path TEXT NOT NULL,
         duration REAL NOT NULL,
         transcript TEXT,
         created_at TEXT NOT NULL,
-        embeddings TEXT
+        embedding TEXT
       );`
     );
   });

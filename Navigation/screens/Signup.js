@@ -23,6 +23,10 @@ export default function SignUpScreen() {
   const passwordsMatch = Password === ConfirmPassword;
 
   const handle_signup = () => {
+    // const BASE_URL = 'http://192.168.1.144:8000'
+    // const BASE_URL = 'http://192.168.1.93:8000'
+    const BASE_URL = 'http://10.0.2.2:8000'
+
     setError('');
     if (!allFieldsFilled) {
       setError('All fields are required.');
@@ -40,7 +44,7 @@ export default function SignUpScreen() {
     );
 
   Promise.race([
-    fetch('http://192.168.1.144:8000/auth/signup', {   // no trailing slash needed
+    fetch(`${BASE_URL}/auth/signup`, {   // no trailing slash needed
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,7 +70,7 @@ export default function SignUpScreen() {
       if (error.message === "Request timed out") {
         setError("Server took too long to respond. Please try again.");
       } else {
-        setError("Network error. Please try again.");
+        setError(`Network error. Please try again. ${error.message}`);
       }
     });
   };
