@@ -83,7 +83,8 @@ export default function SignUpScreen() {
                 resizeMode="center" // ensures it scales properly
                 />
         </View>
-      
+      </View>
+      <View style={styles.middleSection}>
         <View style={styles.fieldsBox}>
           <TextInput style={styles.fields} placeholder="First Name" placeholderTextColor="#ffffff" value={FirstName} onChangeText={setFirstName} />
         </View>
@@ -102,34 +103,23 @@ export default function SignUpScreen() {
         <View style={styles.fieldsBox}>
           <TextInput style={styles.fields} placeholder="Confirm Password" placeholderTextColor="#ffffff" value={ConfirmPassword} onChangeText={setConfirmPassword} />
         </View>
-
-            
-        <View style={styles.signupBox}>
+        <View style={styles.LoginBox}>
+          <TouchableOpacity onPress={handle_signup} disabled={loading} style={styles.loginButton}>
+            {loading ? (
+              <Progress.Circle 
+                size={32} 
+                indeterminate={true} 
+                color="#007AFF" 
+                thickness={3}
+                style={styles.spinner}
+              />
+            ) : (
+              <Text style={styles.title}>LOGIN</Text>
+            )}
+          </TouchableOpacity>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
-
-        {loading ? (<Progress.Circle size={40} indeterminate={true} color="#007AFF" style={{ marginVertical: 12 }} />) : (
-          <View>
-            <TouchableOpacity  onPress={handle_signup}>
-              <Text style={styles.signup}>SIGN UP</Text>
-            </TouchableOpacity>
-
-            <View style={styles.bottomSection}>
-              <View style={styles.googleButton}>
-                <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-                  <Image
-                    source={require("../../assets/search.png")} // path to your PNG
-                    style={styles.googleIcon}
-                    resizeMode="contain" // ensures it scales properly}
-                  />
-                  <Text style={styles.info}>Continue with Google</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-          )}
-      </View>
-
+      </View>    
     </LinearGradient>
   );
 }
@@ -141,18 +131,15 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent"
   },
   middleSection: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    marginTop: 20,
   },
   title: {
     fontSize: 32,
     fontFamily: "Bitter-Regular",
     color: "#000",
-    marginTop: 10,
   },
   topSection: {
-    flex: 1,
     justifyContent: "flex-start",
     alignItems: "center",
     paddingTop: 40,
@@ -170,32 +157,12 @@ const styles = StyleSheet.create({
     height: 39,
     marginBottom: 10,
   },
-  info: {
-    fontSize: 20,
-    fontFamily: "Bitter-Regular",
-    color: "#000",
-    marginLeft: 20,
-    width: "70%",
-  },
-  googleButton: {
-    backgroundColor: "#ffffff",
-    fontFamily: "Bitter-Regular",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 20,
-    top: 0,
-
-  },
+ 
+  
   logo: {
     alignItems: 'center',
   },
-    googleIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 10,
-  },
+  
 
   signup: {
     backgroundColor: "#2D5C5C",
@@ -205,17 +172,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     color: "#fff",
     fontSize: 32,
-    marginBottom: 0,
-    position: "absolute",
     alignContent: 'center',
     top: 20,
   },
   signupBox: {
     alignItems: 'center',
-    marginTop: '10%',
-    marginBottom: 10,
-    display: 'flex',
-    flexDirection: 'column',
+    justifyContent: 'center',
+    marginTop: 20,
+    position: 'relative',
   },
   fields: {
     fontSize: 20,
@@ -226,7 +190,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2D5C5C",
     borderRadius: 10,
     width: "80%",
-    paddingVertical: 10,
+    paddingVertical: "1%",
     marginBottom: 20,
     paddingHorizontal: 10,
   },
@@ -237,8 +201,24 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   error: {
+    position: 'absolute',
+    top: 50,
     color: 'red',
     textAlign: 'center',
     fontSize: 16,
+  },
+  LoginBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginButton: {
+    width: 120,          // fixed width
+    height: 45,          // fixed height
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  spinner: {
+    position: "absolute",
   },
 });
