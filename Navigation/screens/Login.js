@@ -10,15 +10,18 @@ import * as Progress from 'react-native-progress';
 
 
 export default function LoginScreen() {
-    const [Email, setEmail] = React.useState("");
-    const [Password, setPassword] = React.useState("");
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
     const navigation = useNavigation();
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
     const router = useRouter();
-    const allFieldsFilled = Email && Password;
+    const allFieldsFilled = email && password;
 
     const handle_login = async () => {
+      // const BASE_URL = 'http://192.168.1.144:8000'
+      // const BASE_URL = `http://192.168.1.93:8000`
+      const BASE_URL = 'http://10.0.2.2:8000'
       setError('');
       if (!allFieldsFilled) {
         setError('All fields are required.');
@@ -30,10 +33,10 @@ export default function LoginScreen() {
         setTimeout(() => reject(new Error("Request timed out")), ms)
       );
       Promise.race([
-        fetch('http://192.168.1.144:8000/auth/login', {
+        fetch(`${BASE_URL}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ Email, Password })
+          body: JSON.stringify({ email, password})
         }),
         timeout(8000)
       ])
@@ -45,16 +48,24 @@ export default function LoginScreen() {
         setError(data.detail || "Login failed. Please try again.");
         return;
       }
-
-      setLoading(false);
-      navigation.navigate('Home');
+      try {
+        const data = await response.json();
+        saveUserCredentials(data["access_token"],data["refresh_token"])
+        setLoading(false);
+        navigation.navigate('Home')
+      } catch (error) {
+        setError('Login error:', err);
+      }
+      ;
     })
     .catch((error) => {
       setLoading(false);
       if (error.message === "Request timed out") {
         setError("Server took too long to respond. Please try again.");
       } else {
-        setError("Network error. Please try again.");
+        console.log(error.message)
+        setError(`Network error. Please try again. ${error.message}`);
+
       }
     });
   };
@@ -77,10 +88,10 @@ export default function LoginScreen() {
 
       <View style={styles.middleSection}>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} />
+          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={email} onChangeText={setEmail} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} />
+          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} />
         </View>
         <View style={styles.LoginBox}>
           <TouchableOpacity onPress={handle_login} disabled={loading} style={styles.loginButton}>

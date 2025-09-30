@@ -3,12 +3,14 @@ import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityInd
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import * as Progress from 'react-native-progress';
+import {  saveUserCredentials } from '../../utils/auth';
+
 
 
 
 
 export default function SignUpScreen() {
-  const [Username, setUsername] = React.useState("");
+  const [UserName, setUsername] = React.useState("");
   const [Password, setPassword] = React.useState("");
   const [ConfirmPassword, setConfirmPassword] = React.useState("");
   const [FirstName, setFirstName] = React.useState("");
@@ -17,10 +19,14 @@ export default function SignUpScreen() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const navigation = useNavigation();
-  const allFieldsFilled = Username && Email && Password && ConfirmPassword && FirstName && LastName;
+  const allFieldsFilled = UserName && Email && Password && ConfirmPassword && FirstName && LastName;
   const passwordsMatch = Password === ConfirmPassword;
 
   const handle_signup = () => {
+    // const BASE_URL = 'http://192.168.1.144:8000'
+    // const BASE_URL = 'http://192.168.1.93:8000'
+    const BASE_URL = 'http://10.0.2.2:8000'
+
     setError('');
     if (!allFieldsFilled) {
       setError('All fields are required.');
@@ -38,12 +44,12 @@ export default function SignUpScreen() {
     );
 
   Promise.race([
-    fetch('http://192.168.1.144:8000/auth/signup', {   // no trailing slash needed
+    fetch(`${BASE_URL}/auth/signup`, {   // no trailing slash needed
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({FirstName, LastName, Email, Username, Password })
+      body: JSON.stringify({username:UserName,first_name:FirstName, last_name:LastName, email:Email, password:Password })
     }),
     timeout(8000)
   ])
@@ -54,7 +60,8 @@ export default function SignUpScreen() {
         setError(data.detail || "Signup failed. Please try again.");
         return;
       }
-
+      const data = await response.json();
+      saveUserCredentials(data["access_token"],data["refresh_token"])
       setLoading(false);
       navigation.navigate('Home');
     })
@@ -63,7 +70,7 @@ export default function SignUpScreen() {
       if (error.message === "Request timed out") {
         setError("Server took too long to respond. Please try again.");
       } else {
-        setError("Network error. Please try again.");
+        setError(`Network error. Please try again. ${error.message}`);
       }
     });
   };
@@ -95,7 +102,7 @@ export default function SignUpScreen() {
           <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} />
         </View>
         <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={Username} onChangeText={setUsername} />
+          <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={UserName} onChangeText={setUsername} />
         </View>
         <View style={styles.fieldsBox}>
           <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} />
