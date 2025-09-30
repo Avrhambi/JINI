@@ -18,10 +18,11 @@ def create_user_service(user: dict) -> User:
 
     # Convert to User object
     new_user = User(
-        username= user.get("username"),
+        first_name=user.get("first_name"),
+        last_name=user.get("last_name"),
+        username=user.get("username"),
         email=user.get("email"),
-        password=hashed_password,
-        google_id = user.get("google_id")
+        password=hashed_password
     )
     
     # Insert into DB
@@ -54,7 +55,8 @@ def get_user_by_id(user_id: str):
     except Exception:
         return None  # invalid id format
 
-    return User(**db.users_collection.find_one({"_id": obj_id}))
+    return User(**(db.users_collection.find_one({"_id": obj_id})))
+
 
 def get_user_by_google_id(google_id:str) -> User:
     """

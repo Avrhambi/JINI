@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, List
 
 
 # User model
@@ -10,6 +10,7 @@ class User(BaseModel):
     username: Optional[str] = None
     email: str
     password: Optional[str] = None
-    google_id: Optional[str] = None
+    # google_id: Optional[str] = None
+    favorites: Optional[List[str]] = Field(default_factory=list)
 
 

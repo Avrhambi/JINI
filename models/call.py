@@ -7,8 +7,9 @@ from datetime import datetime
 class CallRecord(BaseModel):
     id: Optional[str] = None
     user_id: str
+    caller: str
     audio_file_path: str
     duration: float
     transcript: str
     created_at: datetime
-    embeddings: Optional[List[float]] = None
+    embedding: Optional[List[float]] = None
