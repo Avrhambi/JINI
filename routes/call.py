@@ -23,8 +23,8 @@ def get_favorites(user_id):
 def get_callRecord_info(id: str):
     return get_callRecord_info()
 
-#To do
+
 @call_router.post("/upload_audio")
-def upload_audio(audio):
+async def upload_audio(audio: UploadFile = File(...)):
     return upload_callRecord(audio)
 

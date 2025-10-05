@@ -1,9 +1,9 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile, File, HTTPException, Form
 from services.call import add_to_favorites_service, remove_from_favorites_service, get_favorites_list_service, get_call_by_id
 from pathlib import Path
-from fastapi import UploadFile, File, HTTPException
 from bson import ObjectId
 import shutil
+import uuid 
 
 # Directory to store audio files
 UPLOAD_DIR = Path("audios")
@@ -64,7 +64,9 @@ def get_callRecord_info(call_id: str):
     return call
 
 
-def upload_callRecord(call_id: str, file: UploadFile = File(...)):
+def upload_callRecord(file: UploadFile):
+    call_id = str(uuid.uuid4())
+
     #  Validate file type
     if file.content_type not in ["audio/mpeg", "audio/mp4"]:
         raise HTTPException(status_code=400, detail="Invalid file type. Only mp3 or mp4 allowed.")
