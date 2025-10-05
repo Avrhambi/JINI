@@ -44,12 +44,12 @@ def startup_db_client():
     try:
         db.init_db()
         db.client.admin.command("ping")   #ping to Db
-        print("✅ Connected to MongoDB!")
+        print("Connected to MongoDB!")
     except Exception as e:
-        print("❌ Could not connect to MongoDB:", e)
+        print("Could not connect to MongoDB:", e)
         raise
 
 # #close connection to DB
 # @app.on_event("shutdown")
 # def shutdown_db_client():
-#     db.close_db()
+#     db.close_db()x
