@@ -71,34 +71,50 @@ export default function HomeScreen() {
   }
 }
 
-  const pickAudio = async () => {
-  const result = await DocumentPicker.getDocumentAsync({
-    type: "audio/*",
-    copyToCacheDirectory: true,
-  });
+const pickAudio = async () => {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "audio/*",
+      copyToCacheDirectory: true,
+    });
 
-  if (result.type === "success") {
-    const destPath = audioDir + result.name;
+    // Check for cancellation (newer API)
+    if (result.canceled) {
+      console.log("User cancelled document picker");
+      return;
+    }
+
+    // Get the first selected file
+    const file = result.assets[0];
+    const destPath = audioDir + file.name;
+
+    console.log("Selected file:", file.name);
+    console.log("Destination path:", destPath);
 
     try {
       // --- Save to local folder ---
       await FileSystem.copyAsync({
-        from: result.uri,
+        from: file.uri,
         to: destPath,
       });
 
+      console.log("File saved locally at:", destPath);
+
       // Update state
-      setAudioFiles((prev) => [...prev, result.name]);
+      setAudioFiles((prev) => [...prev, file.name]);
 
       // --- Upload to backend from local folder ---
       const formData = new FormData();
       formData.append("audio", {
-        uri: destPath,                 // now using the saved local copy
-        name: result.name,
-        type: result.mimeType || "audio/mpeg",
+        uri: destPath,
+        name: file.name,
+        type: file.mimeType || "audio/mpeg",
       });
 
-      const response = await fetch("http://192.168.1.93:8000/calls/upload_audio", {
+      console.log("Uploading to backend...");
+
+      const BASE_URL = 'http://10.0.2.2:8000'
+      const response = await fetch(`${BASE_URL}/calls/upload_audio`, {
         method: "POST",
         body: formData,
         headers: {
@@ -106,19 +122,108 @@ export default function HomeScreen() {
         },
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
         console.log("Upload failed:", data);
+        Alert.alert("Upload Failed", JSON.stringify(data));
       } else {
-        const data = await response.json();
         console.log("Upload success:", data);
-        listAudios();
+        Alert.alert("Success", "Audio uploaded successfully!");
+        await listAudios();
       }
     } catch (err) {
-      console.log("Error while saving/uploading audio:", err);
+      console.error("Error while saving/uploading audio:", err);
+      Alert.alert("Error", `Failed to upload: ${err.message}`);
     }
+  } catch (err) {
+    console.error("Error picking document:", err);
+    Alert.alert("Error", `Failed to pick file: ${err.message}`);
   }
 };
+
+
+//   const pickAudio = async () => {
+//   const result = await DocumentPicker.getDocumentAsync({
+//     type: "audio/*",
+//     copyToCacheDirectory: true,
+//   });
+
+//   if (result.type === "success") {
+//     const destPath = audioDir + result.name;
+
+//     try {
+//       // --- Save to local folder ---
+//       await FileSystem.copyAsync({
+//         from: result.uri,
+//         to: destPath,
+//       });
+
+//       // Update state
+//       setAudioFiles((prev) => [...prev, result.name]);
+
+//       // --- Upload to backend from local folder ---
+//       const formData = new FormData();
+//       formData.append("audio", {
+//         uri: destPath,                 // now using the saved local copy
+//         name: result.name,
+//         type: result.mimeType || "audio/mpeg",
+//       });
+//       const BASE_URL = 'http://10.0.2.2:8000'
+//       const response = await fetch(`${BASE_URL}/calls/upload_audio`, {
+//         method: "POST",
+//         body: formData,
+//         headers: {
+//           "Content-Type": "multipart/form-data",
+//         },
+//       });
+
+//       if (!response.ok) {
+//         const data = await response.json();
+//         console.log("Upload failed:", data);
+//       } else {
+//         const data = await response.json();
+//         console.log("Upload success:", data);
+//         listAudios();
+//       }
+//     } catch (err) {
+//       console.log("Error while saving/uploading audio:", err);
+//     }
+//   }
+// };
+
+// Add this playAudio function
+const playAudio = async (fileName) => {
+  try {
+    // Stop any currently playing sound
+    if (sound) {
+      await sound.unloadAsync();
+      setSound(null);
+    }
+
+    const filePath = audioDir + fileName;
+    console.log("Playing audio from:", filePath);
+
+    const { sound: newSound } = await Audio.Sound.createAsync(
+      { uri: filePath },
+      { shouldPlay: true }
+    );
+
+    setSound(newSound);
+
+    // Optional: Handle when audio finishes playing
+    newSound.setOnPlaybackStatusUpdate((status) => {
+      if (status.didJustFinish) {
+        newSound.unloadAsync();
+        setSound(null);
+      }
+    });
+  } catch (err) {
+    console.error("Error playing audio:", err);
+    Alert.alert("Error", `Failed to play audio: ${err.message}`);
+  }
+};
+
 
   function millisToMinutesAndSeconds(millis) {
     const minutes = Math.floor(millis / 60000);
@@ -200,18 +305,46 @@ export default function HomeScreen() {
     >
       {    
       <View style={{ flex: 1, padding: 100 }}>
-        <Button title="Pick Audio File" onPress={pickAudio} />
+  <Button title="Pick Audio File" onPress={pickAudio} />
 
-        <FlatList
-          data={audioFiles}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => playAudio(item)}>
-              <Text style={{ marginVertical: 10, fontSize: 16 }}>▶ {item}</Text>
-            </TouchableOpacity>
-          )}
-        />
-    </View>
+  {audioFiles.length > 0 && (
+    <>
+      <Text style={{ fontSize: 18, marginTop: 20, marginBottom: 10 }}>
+        Saved Audio Files:
+      </Text>
+      <FlatList
+        data={audioFiles}
+        keyExtractor={(item, index) => `${item}-${index}`}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            onPress={() => playAudio(item)}
+            style={{ 
+              padding: 10, 
+              backgroundColor: '#2D5C5C', 
+              marginVertical: 5, 
+              borderRadius: 10 
+            }}
+          >
+            <Text style={{ fontSize: 16, color: '#fff' }}>▶ {item}</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </>
+  )}
+</View>
+    //   <View style={{ flex: 1, padding: 100 }}>
+    //     <Button title="Pick Audio File" onPress={pickAudio} />
+
+    //     <FlatList
+    //       data={audioFiles}
+    //       keyExtractor={(item) => item}
+    //       renderItem={({ item }) => (
+    //         <TouchableOpacity onPress={() => playAudio(item)}>
+    //           <Text style={{ marginVertical: 10, fontSize: 16 }}>▶ {item}</Text>
+    //         </TouchableOpacity>
+    //       )}
+    //     />
+    // </View>
       /* <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Button title="Test Protected Request" onPress={testProtectedRequest} />
       </View> */}
