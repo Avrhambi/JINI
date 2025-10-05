@@ -17,6 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "versionCode": 1,
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
@@ -28,9 +29,8 @@
     },
     "plugins": [
       "expo-font",
-      "expo-router",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite" 
     ],
     "extra": {
       "router": {},

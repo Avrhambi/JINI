@@ -1,138 +1,184 @@
-import React from "react";
+import React, {useEffect} from "react";
 import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
-import { Link, useRouter } from 'expo-router';
 import {  saveUserCredentials } from '../../utils/auth';
 import * as Progress from 'react-native-progress';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+// import * as Google from 'expo-auth-session/providers/google';
+
 
 
 
 
 export default function LoginScreen() {
-    const [email, setEmail] = React.useState("");
-    const [password, setPassword] = React.useState("");
-    const navigation = useNavigation();
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState('');
-    const router = useRouter();
-    const allFieldsFilled = email && password;
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const navigation = useNavigation();
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const allFieldsFilled = email && password;
+  const handleGoogleSignIn = async () => {
+  try {
+    await GoogleSignin.hasPlayServices();
+    const userInfo = await GoogleSignin.signIn();
+    
+    console.log('User Info:', userInfo);
+    // userInfo.idToken - send this to your backend
+    
+    navigation.navigate('Home');
+  } catch (error) {
+    console.error('Google Sign-In Error:', error);
+  }
+};
+//   const [request, response, promptAsync] = Google.useAuthRequest({
+//   androidClientId: '554785841727-gco8l0obkhk5drk064l6dal7j7aqrkv0.apps.googleusercontent.com',
+// });
 
-    const handle_login = async () => {
-      // const BASE_URL = 'http://192.168.1.144:8000'
-      // const BASE_URL = `http://192.168.1.93:8000`
-      const BASE_URL = 'http://10.0.2.2:8000'
-      setError('');
-      if (!allFieldsFilled) {
-        setError('All fields are required.');
-        return;
-      }
-      setLoading(true);
-      const timeout = (ms) =>
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Request timed out")), ms)
-      );
-      Promise.race([
-        fetch(`${BASE_URL}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password})
-        }),
-        timeout(8000)
-      ])
+  // const handleGoogleSignIn = async () => {
+  //   try {
+  //     // Prompt user to sign in
+  //     const result = await promptAsync();
 
-      .then(async (response) => {
-      if (!response || !response.ok) {
-        const data = response ? await response.json() : {};
-        setLoading(false);
-        setError(data.detail || "Login failed. Please try again.");
-        return;
-      }
-      try {
-        const data = await response.json();
-        saveUserCredentials(data["access_token"],data["refresh_token"])
-        setLoading(false);
-        navigation.navigate('Home')
-      } catch (error) {
-        setError('Login error:', err);
-      }
-      ;
-    })
-    .catch((error) => {
+  //     if (result.type === 'success') {
+  //       const accessToken = result.authentication.accessToken;
+  //       console.log('Google access token:', accessToken);
+
+  //       // Fetch user info
+  //       const res = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+  //         headers: { Authorization: `Bearer ${accessToken}` },
+  //       });
+  //       const user = await res.json();
+  //       console.log('Google user info:', user);
+
+  //       // You can now save user info or send token to backend
+  //       // Example: saveUserCredentials(accessToken, null);
+
+  //       // Navigate to Home
+  //       navigation.navigate('Home');
+  //     }
+  //   } catch (err) {
+  //     console.error('Google Sign-In error:', err);
+  //   }
+  // };
+
+
+
+  const handle_login = async () => {
+    // const BASE_URL = 'http://192.168.1.144:8000'
+    // const BASE_URL = `http://192.168.1.93:8000`
+    const BASE_URL = 'http://10.0.2.2:8000'
+    setError('');
+    if (!allFieldsFilled) {
+      setError('All fields are required.');
+      return;
+    }
+    setLoading(true);
+    const timeout = (ms) =>
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out")), ms)
+    );
+    Promise.race([
+      fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password})
+      }),
+      timeout(8000)
+    ])
+
+    .then(async (response) => {
+    if (!response || !response.ok) {
+      const data = response ? await response.json() : {};
       setLoading(false);
-      if (error.message === "Request timed out") {
-        setError("Server took too long to respond. Please try again.");
-      } else {
-        console.log(error.message)
-        setError(`Network error. Please try again. ${error.message}`);
+      setError(data.detail || "Login failed. Please try again.");
+      return;
+    }
+    try {
+      const data = await response.json();
+      saveUserCredentials(data["access_token"],data["refresh_token"])
+      setLoading(false);
+      navigation.navigate('Home')
+    } catch (error) {
+      setError('Login error:', err);
+    }
+    ;
+  })
+  .catch((error) => {
+    setLoading(false);
+    if (error.message === "Request timed out") {
+      setError("Server took too long to respond. Please try again.");
+    } else {
+      console.log(error.message)
+      setError(`Network error. Please try again. ${error.message}`);
 
-      }
-    });
+    }
+  });
   };
-    return (
-    <LinearGradient
-      colors={["#E1E6E7", "#ADC3C7", "#424242"]}
-      locations={[0.25, 0.63, 1]}   // match your figma stops
-      style={styles.container}
-    >
-      <View style={styles.topSection}>
-        <View style = {styles.logo}>
-          <Text style={styles.jini}>JINI</Text>
-          <Image
-          source={require("../../assets/genie-512.png")} // path to your PNG
-          style={styles.icon}
-          resizeMode="center" // ensures it scales properly
-          />
-        </View>
+  return (
+  <LinearGradient
+    colors={["#E1E6E7", "#ADC3C7", "#424242"]}
+    locations={[0.25, 0.63, 1]}   // match your figma stops
+    style={styles.container}
+  >
+    <View style={styles.topSection}>
+      <View style = {styles.logo}>
+        <Text style={styles.jini}>JINI</Text>
+        <Image
+        source={require("../../assets/genie-512.png")} // path to your PNG
+        style={styles.icon}
+        resizeMode="center" // ensures it scales properly
+        />
       </View>
+    </View>
 
-      <View style={styles.middleSection}>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={email} onChangeText={setEmail} />
-        </View>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} />
-        </View>
-        <View style={styles.LoginBox}>
-          <TouchableOpacity onPress={handle_login} disabled={loading} style={styles.loginButton}>
-            {loading ? (
-              <Progress.Circle 
-                size={32} 
-                indeterminate={true} 
-                color="#007AFF" 
-                thickness={3}
-                style={styles.spinner}
-              />
-            ) : (
-              <Text style={styles.title}>LOGIN</Text>
-            )}
-          </TouchableOpacity>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-        </View>
-        <View style={styles.googleButton}>
-          <TouchableOpacity style={styles.googleContent} onPress={() => navigation.navigate('Home')}>
-            <Image
-              source={require("../../assets/search.png")} // path to your PNG
-              style={styles.googleIcon}
-              resizeMode="contain" // ensures it scales properly
+    <View style={styles.middleSection}>
+      <View style={styles.fieldsBox}>
+        <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={email} onChangeText={setEmail} />
+      </View>
+      <View style={styles.fieldsBox}>
+        <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} />
+      </View>
+      <View style={styles.LoginBox}>
+        <TouchableOpacity onPress={handle_login} disabled={loading} style={styles.loginButton}>
+          {loading ? (
+            <Progress.Circle 
+              size={32} 
+              indeterminate={true} 
+              color="#007AFF" 
+              thickness={3}
+              style={styles.spinner}
             />
-            <Text style={styles.infoGoogle}>Continue with Google</Text>
-          </TouchableOpacity>
-        </View>
+          ) : (
+            <Text style={styles.title}>LOGIN</Text>
+          )}
+        </TouchableOpacity>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
+      <View style={styles.googleButton}> 
+        <TouchableOpacity style={styles.googleContent} onPress={handleGoogleSignIn}>
+          <Image
+            source={require("../../assets/search.png")} // path to your PNG
+            style={styles.googleIcon}
+            resizeMode="contain" // ensures it scales properly
+          />
+          <Text style={styles.infoGoogle}>Continue with Google</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
 
-      <View style={styles.bottomSection}>
-        <View style={styles.SignupContent}>
-            <Text style={styles.info}>Don’t have an account?</Text>
-            <TouchableOpacity  onPress={() => navigation.navigate('Signup')}>
-                <Text style={styles.signup}>SIGN UP</Text>
-            </TouchableOpacity>
-        </View>
-        
+    <View style={styles.bottomSection}>
+      <View style={styles.SignupContent}>
+          <Text style={styles.info}>Don’t have an account?</Text>
+          <TouchableOpacity  onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.signup}>SIGN UP</Text>
+          </TouchableOpacity>
       </View>
-    </LinearGradient>
+      
+    </View>
+  </LinearGradient>
   );
-}
+  }
 
 const styles = StyleSheet.create({
   container: {

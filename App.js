@@ -10,6 +10,13 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+// At the top level, before your component exports
+GoogleSignin.configure({
+  webClientId: '554785841727-g9of1jn1v5g54ph58gnfht2uj6vfn46m.apps.googleusercontent.com',
+  offlineAccess: true,
+});
 
 const Stack = createNativeStackNavigator();
 

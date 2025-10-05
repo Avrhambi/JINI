@@ -3,9 +3,14 @@ import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, FlatList, B
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import {Audio} from "expo-av"
-import { apiFetch } from "../../utils/api";
+// import { apiFetch } from "../../utils/api";
 import * as FileSystem from 'expo-file-system';
 import {Ionicons} from '@expo/vector-icons';
+import * as DocumentPicker from "expo-document-picker";
+
+
+
+
 
 
 
@@ -17,6 +22,8 @@ export default function HomeScreen() {
   const [expandedId, setExpandedId] = React.useState(null);
   const [favorites, setFavorites] = React.useState([]);
   const [currentTab, setCurrentTab] = React.useState("all"); // "all" | "favorites"
+  const [audioFiles, setAudioFiles] = useState([]);
+  const [sound, setSound] = useState(null);
 
 
   const navigation = useNavigation();
@@ -41,7 +48,78 @@ export default function HomeScreen() {
       }
     };
   }, []);
-  
+
+  async function listAudios() {
+  try {
+    // make sure directory exists
+    const dirInfo = await FileSystem.getInfoAsync(audioDir);
+    if (!dirInfo.exists) {
+      console.log("No audios folder yet at:", audioDir);
+      return;
+    }
+
+    // read all files in audios/
+    const files = await FileSystem.readDirectoryAsync(audioDir);
+    if (files.length === 0) {
+      console.log("No audio files found in:", audioDir);
+    } else {
+      console.log("Audio files in:", audioDir);
+      files.forEach((f) => console.log(" - " + f));
+    }
+  } catch (err) {
+    console.error("Error reading audio dir:", err);
+  }
+}
+
+  const pickAudio = async () => {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: "audio/*",
+    copyToCacheDirectory: true,
+  });
+
+  if (result.type === "success") {
+    const destPath = audioDir + result.name;
+
+    try {
+      // --- Save to local folder ---
+      await FileSystem.copyAsync({
+        from: result.uri,
+        to: destPath,
+      });
+
+      // Update state
+      setAudioFiles((prev) => [...prev, result.name]);
+
+      // --- Upload to backend from local folder ---
+      const formData = new FormData();
+      formData.append("audio", {
+        uri: destPath,                 // now using the saved local copy
+        name: result.name,
+        type: result.mimeType || "audio/mpeg",
+      });
+
+      const response = await fetch("http://192.168.1.93:8000/calls/upload_audio", {
+        method: "POST",
+        body: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        console.log("Upload failed:", data);
+      } else {
+        const data = await response.json();
+        console.log("Upload success:", data);
+        listAudios();
+      }
+    } catch (err) {
+      console.log("Error while saving/uploading audio:", err);
+    }
+  }
+};
+
   function millisToMinutesAndSeconds(millis) {
     const minutes = Math.floor(millis / 60000);
     const seconds = Math.floor((millis % 60000) / 1000);
@@ -120,7 +198,21 @@ export default function HomeScreen() {
       locations={[0.25, 0.63, 1]}   // match your figma stops
       style={styles.container}
     >
-      {/* <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      {    
+      <View style={{ flex: 1, padding: 100 }}>
+        <Button title="Pick Audio File" onPress={pickAudio} />
+
+        <FlatList
+          data={audioFiles}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => (
+            <TouchableOpacity onPress={() => playAudio(item)}>
+              <Text style={{ marginVertical: 10, fontSize: 16 }}>▶ {item}</Text>
+            </TouchableOpacity>
+          )}
+        />
+    </View>
+      /* <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Button title="Test Protected Request" onPress={testProtectedRequest} />
       </View> */}
       <View style={styles.topSection}>
