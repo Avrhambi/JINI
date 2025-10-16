@@ -34,6 +34,25 @@ def create_user_service(user: dict) -> User:
         # MongoDB will throw this automatically because of the unique index
         raise
 
+    
+def create_google_user(google_info: dict) -> User:
+    """
+    Create a new user from Google OAuth data.
+    No password needed for Google users.
+    """
+    new_user = User(
+        first_name=google_info["given_name"],
+        last_name=google_info["family_name"],
+        email=google_info["email"],
+        password=None  # Google users don't have passwords
+    )
+    
+    try:
+        result = db.users_collection.insert_one(new_user.dict(exclude={"id"}))
+        new_user.id = str(result.inserted_id)
+        return new_user
+    except DuplicateKeyError:
+        raise
 
 def get_user_by_email(email: str):
     """

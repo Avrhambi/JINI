@@ -15,7 +15,7 @@ def login(user: LoginRequest):
 
 #To do
 @auth_router.post("/login/google")
-def login(google_token: str):
+def google_login(google_token: str):
     return auth_google_login(google_token)
 
 

@@ -2,6 +2,8 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 # from google.oauth2 import id_token
 # from google.auth.transport import requests
+from google.oauth2 import id_token
+from google.auth.transport import requests
 import jwt
 import os
 
@@ -11,7 +13,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
 ALGORITHM = "HS256"
 
-google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 
 
@@ -56,5 +58,26 @@ def verify_refresh_token(token: str):
         return None
 
 
-def verify_google_token(token: str):
-    pass
+
+def verify_google_token(token: str) -> dict:
+    """
+    Verify Google ID token and extract user information.
+    Returns dict with user info: email, given_name, family_name
+    """
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            token, 
+            requests.Request(), 
+            GOOGLE_CLIENT_ID
+        )
+        
+        # Token is valid, return user info
+        return {
+            "email": idinfo["email"],
+            "given_name": idinfo.get("given_name", ""),
+            "family_name": idinfo.get("family_name", "")
+        }
+    except ValueError as e:
+        # Invalid token
+        raise ValueError(f"Token verification failed: {str(e)}")
+
