@@ -15,3 +15,6 @@ class LoginRequest(BaseModel):
     password: str  # optional for Google account
 
 
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str

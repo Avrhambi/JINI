@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from models.auth import SignupRequest
-from services.user import create_user_service, get_user_by_email, verify_google_token
+from services.user import create_user_service, get_user_by_email
 from utils.auth_utils import *
 from pymongo.errors import DuplicateKeyError
 from models.auth import LoginRequest

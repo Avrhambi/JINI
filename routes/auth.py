@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from models.auth import SignupRequest
+from models.auth import SignupRequest, GoogleLoginRequest
 from controllers.auth import *
 from middleware.auth import auth_refresh_token
 
@@ -13,10 +13,10 @@ def signup(user: SignupRequest):
 def login(user: LoginRequest):
     return auth_login(user)
 
-#To do
+
 @auth_router.post("/login/google")
-def google_login(google_token: str):
-    return auth_google_login(google_token)
+def google_login(request: GoogleLoginRequest):
+    return auth_google_login(request.id_token)
 
 
 @auth_router.post("/auth/refresh")
