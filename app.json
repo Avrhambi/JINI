@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/adaptive-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "versionCode": 1,
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -30,7 +30,8 @@
     "plugins": [
       "expo-font",
       "expo-secure-store",
-      "expo-sqlite" 
+      "expo-sqlite",
+      "expo-asset"
     ],
     "extra": {
       "router": {},

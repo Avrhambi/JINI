@@ -1,11 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
 
 // Save access and refresh tokens
-export const saveUserCredentials = async (accessToken, refreshToken) => {
-  await SecureStore.setItemAsync("accessToken", accessToken);
-  await SecureStore.setItemAsync("refreshToken", refreshToken);
-  // await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfo));
-};
+// export const saveUserCredentials = async (accessToken, refreshToken) => {
+//   await SecureStore.setItemAsync("accessToken", accessToken);
+//   await SecureStore.setItemAsync("refreshToken", refreshToken);
+//   // await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfo));
+// };
 
 // Get access token
 export const getAccessToken = async () => {
@@ -21,5 +21,20 @@ export const getRefreshToken = async () => {
 export const removeUserCredentials = async () => {
   await SecureStore.deleteItemAsync("accessToken");
   await SecureStore.deleteItemAsync("refreshToken");
-  // await SecureStore.deleteItemAsync('userInfo');
+  await SecureStore.deleteItemAsync('userInfo');
+};
+
+export const saveUserCredentials = async (accessToken, refreshToken, userInfo) => {
+  try {
+    await SecureStore.setItemAsync("accessToken", accessToken);
+    await SecureStore.setItemAsync("refreshToken", refreshToken);
+    await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfo));
+  } catch (error) {
+    console.error("Error saving user credentials:", error);
+  }
+};
+
+export const getUserInfo = async () => {
+  const info = await SecureStore.getItemAsync("userInfo");
+  return info ? JSON.parse(info) : null;
 };

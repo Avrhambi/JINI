@@ -1,6 +1,6 @@
 import { getAccessToken, getRefreshToken, saveTokens, removeTokens } from './auth';
 
-const API_BASE_URL = 'http://192.168.1.144:8000'; // your backend
+// const BASE_URL = 'http://192.168.1.144:8000'; // your backend
 
 // Generic fetch wrapper
 export const apiFetch = async (endpoint, options = {}) => {
@@ -17,7 +17,7 @@ export const apiFetch = async (endpoint, options = {}) => {
   };
 
   console.log("after token", options)
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+  let response = await fetch(`${BASE_URL}${endpoint}`, options);
 
   // If token expired, try refresh
   if (response.status === 401) {
@@ -27,7 +27,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     }
 
     // Request new access token
-    const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
@@ -44,7 +44,7 @@ export const apiFetch = async (endpoint, options = {}) => {
 
     // Retry original request with new access token
     options.headers.Authorization = `Bearer ${accessToken}`;
-    response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    response = await fetch(`${BASE_URL}${endpoint}`, options);
   }
 
   const data = await response.json();

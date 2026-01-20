@@ -11,6 +11,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 
 
+
 export default function LoginScreen() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -18,6 +19,10 @@ export default function LoginScreen() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const allFieldsFilled = email && password;
+  // const BASE_URL = 'http://172.18.124.55:8000';
+    const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
+
+  
   const handleGoogleSignIn = async () => {
   try {
     await GoogleSignin.hasPlayServices();
@@ -67,7 +72,6 @@ export default function LoginScreen() {
   const handle_login = async () => {
     // const BASE_URL = 'http://192.168.1.144:8000'
     // const BASE_URL = `http://192.168.1.93:8000`
-    const BASE_URL = 'http://10.0.2.2:8000'
     setError('');
     if (!allFieldsFilled) {
       setError('All fields are required.');
@@ -86,34 +90,72 @@ export default function LoginScreen() {
       }),
       timeout(8000)
     ])
-
     .then(async (response) => {
     if (!response || !response.ok) {
-      const data = response ? await response.json() : {};
-      setLoading(false);
-      setError(data.detail || "Login failed. Please try again.");
-      return;
+        const data = response ? await response.json() : {};
+        setLoading(false);
+        setError(data.detail || "Login failed.");
+        return;
     }
-    try {
-      const data = await response.json();
-      saveUserCredentials(data["access_token"],data["refresh_token"])
-      setLoading(false);
-      navigation.navigate('Home')
-    } catch (error) {
-      setError('Login error:', err);
-    }
-    ;
-  })
-  .catch((error) => {
-    setLoading(false);
-    if (error.message === "Request timed out") {
-      setError("Server took too long to respond. Please try again.");
-    } else {
-      console.log(error.message)
-      setError(`Network error. Please try again. ${error.message}`);
 
+    try {
+        const data = await response.json();
+        
+    // Create a profile object to store alongside the tokens
+        const userInfo = {
+            name: data["name"] || 'User',
+            email: email, // from your text input state
+            id: data["user_id"] 
+        };
+
+        // Use your auth.js helper correctly (passing 3 arguments now)
+        await saveUserCredentials(
+            data["access_token"], 
+            data["refresh_token"], 
+            userInfo
+        );
+
+        setLoading(false);
+        setEmail('');
+        setPassword('');
+        navigation.navigate('Home');
+ 
+    } catch (error) {
+        console.error(error);
+        setError('Failed to process login data.');
     }
-  });
+})
+
+  //   .then(async (response) => {
+  //   if (!response || !response.ok) {
+  //     const data = response ? await response.json() : {};
+  //     setLoading(false);
+  //     setError(data.detail || "Login failed. Please try again.");
+  //     return;
+  //   }
+  //   try {
+  //     const data = await response.json();
+  //     saveUserCredentials(data["access_token"],data["refresh_token"])
+  //     if (data.user_name) {
+  //       await AsyncStorage.setItem('user_name', data.user_name);
+  //     }
+  //     setLoading(false);
+  //     navigation.navigate('Home')
+  //   } catch (error) {
+  //     setError('Login error:', error);
+  //   }
+  //   ;
+  // })
+  // .catch((error) => {
+  //   setLoading(false);
+  //   if (error.message === "Request timed out") {
+  //     setError("Server took too long to respond. Please try again.");
+  //   } else {
+  //     console.log(error.message)
+  //     setError(`Network error. Please try again. ${error.message}`);
+
+  //   }
+  // });
   };
   return (
   <LinearGradient
@@ -134,10 +176,10 @@ export default function LoginScreen() {
 
     <View style={styles.middleSection}>
       <View style={styles.fieldsBox}>
-        <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={email} onChangeText={setEmail} />
+        <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={email} onChangeText={setEmail} autoCapitalize="none" />
       </View>
       <View style={styles.fieldsBox}>
-        <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} />
+        <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} secureTextEntry={true} autoCapitalize="none" />
       </View>
       <View style={styles.LoginBox}>
         <TouchableOpacity onPress={handle_login} disabled={loading} style={styles.loginButton}>
@@ -170,7 +212,7 @@ export default function LoginScreen() {
     <View style={styles.bottomSection}>
       <View style={styles.SignupContent}>
           <Text style={styles.info}>Don’t have an account?</Text>
-          <TouchableOpacity  onPress={() => navigation.navigate('Signup')}>
+          <TouchableOpacity  onPress={() => { navigation.navigate('Signup');  }}>
               <Text style={styles.signup}>SIGN UP</Text>
           </TouchableOpacity>
       </View>
@@ -262,6 +304,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     alignItems: 'center',
     marginLeft: 10,
+    textDecorationLine: 'underline',
   },
     SignupContent: {
     flexDirection: "row",   

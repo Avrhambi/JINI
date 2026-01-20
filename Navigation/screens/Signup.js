@@ -1,12 +1,9 @@
 import React from "react";
-import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityIndicator} from "react-native";
+import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityIndicator, FlatList, ScrollView, KeyboardAvoidingView} from "react-native";
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import * as Progress from 'react-native-progress';
 import {  saveUserCredentials } from '../../utils/auth';
-
-
-
 
 
 export default function SignUpScreen() {
@@ -25,11 +22,24 @@ export default function SignUpScreen() {
   const handle_signup = () => {
     // const BASE_URL = 'http://192.168.1.144:8000'
     // const BASE_URL = 'http://192.168.1.93:8000'
-    const BASE_URL = 'http://10.0.2.2:8000'
+    const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
     setError('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+      
     if (!allFieldsFilled) {
       setError('All fields are required.');
+      return;
+    }
+    if (!emailRegex.test(Email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!passwordRegex.test(Password)) {
+      setError('Password do not match requirements.');
       return;
     }
     if (!passwordsMatch) {
@@ -39,9 +49,9 @@ export default function SignUpScreen() {
 
     setLoading(true);
     const timeout = (ms) =>
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request timed out")), ms)
-    );
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out")), ms)
+      );
 
   Promise.race([
     fetch(`${BASE_URL}/auth/signup`, {   // no trailing slash needed
@@ -54,16 +64,24 @@ export default function SignUpScreen() {
     timeout(8000)
   ])
     .then(async (response) => {
-      if (!response || !response.ok) {
-        const data = response ? await response.json() : {};
+      const data = await response.json();
+      if (!response.ok) {
         setLoading(false);
-        setError(data.detail || "Signup failed. Please try again.");
+        if (data.detail && data.detail.includes("email")) {
+          setError("Email is already in use.");
+        } else {
+          setError(data.detail || "Signup failed. Please try again.");
+        }
         return;
       }
-      const data = await response.json();
-      saveUserCredentials(data["access_token"],data["refresh_token"])
+      const userInfo = {
+        id: data["user_id"],
+        email: Email,
+        name: `${FirstName} ${LastName}`
+      };
+      await saveUserCredentials(data.access_token, data.refresh_token, userInfo);
       setLoading(false);
-      navigation.navigate('Home');
+      navigation.navigate('Login');
     })
     .catch((error) => {
       setLoading(false);
@@ -91,42 +109,44 @@ export default function SignUpScreen() {
                 />
         </View>
       </View>
-      <View style={styles.middleSection}>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="First Name" placeholderTextColor="#ffffff" value={FirstName} onChangeText={setFirstName} />
-        </View>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Last Name" placeholderTextColor="#ffffff" value={LastName} onChangeText={setLastName} />
-        </View>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} />
-        </View>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={UserName} onChangeText={setUsername} />
-        </View>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} />
-        </View>
-        <View style={styles.fieldsBox}>
-          <TextInput style={styles.fields} placeholder="Confirm Password" placeholderTextColor="#ffffff" value={ConfirmPassword} onChangeText={setConfirmPassword} />
-        </View>
-        <View style={styles.LoginBox}>
-          <TouchableOpacity onPress={handle_signup} disabled={loading} style={styles.loginButton}>
-            {loading ? (
-              <Progress.Circle 
-                size={32} 
-                indeterminate={true} 
-                color="#007AFF" 
-                thickness={3}
-                style={styles.spinner}
-              />
-            ) : (
-              <Text style={styles.title}>LOGIN</Text>
-            )}
-          </TouchableOpacity>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-        </View>
-      </View>    
+      <KeyboardAvoidingView behavior="height" style={{ flex: 1, width: '100%' }}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.middleSection} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
+          <View style={styles.fieldsBox}>
+            <TextInput style={styles.fields} placeholder="First Name" placeholderTextColor="#ffffff" value={FirstName} onChangeText={setFirstName} />
+          </View>
+          <View style={styles.fieldsBox}>
+            <TextInput style={styles.fields} placeholder="Last Name" placeholderTextColor="#ffffff" value={LastName} onChangeText={setLastName} />
+          </View>
+          <View style={styles.fieldsBox}>
+            <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} autoCapitalize="none" />
+          </View>
+          <View style={styles.fieldsBox}>
+            <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={UserName} onChangeText={setUsername} autoCapitalize="none" />
+          </View>
+          <View style={styles.fieldsBox}>
+            <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} secureTextEntry={true} autoCapitalize="none" />
+          </View>
+          <View style={styles.fieldsBox}>
+            <TextInput style={styles.fields} placeholder="Confirm Password" placeholderTextColor="#ffffff" value={ConfirmPassword} onChangeText={setConfirmPassword} secureTextEntry={true} autoCapitalize="none" />
+          </View>
+          <View style={styles.LoginBox}>
+            <TouchableOpacity onPress={handle_signup} disabled={loading} style={styles.loginButton}>
+              {loading ? (
+                <Progress.Circle 
+                  size={32} 
+                  indeterminate={true} 
+                  color="#007AFF" 
+                  thickness={3}
+                  style={styles.spinner}
+                />
+              ) : (
+                <Text style={styles.title}>SIGN UP</Text>
+              )}
+            </TouchableOpacity>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>    
     </LinearGradient>
   );
 }
@@ -140,6 +160,7 @@ const styles = StyleSheet.create({
   middleSection: {
     alignItems: "center",
     marginTop: 20,
+    paddingBottom: 80,
   },
   title: {
     fontSize: 32,
@@ -169,25 +190,29 @@ const styles = StyleSheet.create({
   logo: {
     alignItems: 'center',
   },
+  scrollView: {
+    flex: 1,
+  },
+
   
 
-  signup: {
-    backgroundColor: "#2D5C5C",
-    fontFamily: "Bitter-Regular",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    color: "#fff",
-    fontSize: 32,
-    alignContent: 'center',
-    top: 20,
-  },
-  signupBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    position: 'relative',
-  },
+  // signup: {
+  //   backgroundColor: "#2D5C5C",
+  //   fontFamily: "Bitter-Regular",
+  //   paddingHorizontal: 20,
+  //   paddingVertical: 10,
+  //   borderRadius: 10,
+  //   color: "#fff",
+  //   fontSize: 32,
+  //   alignContent: 'center',
+  //   top: 20,
+  // },
+  // signupBox: {
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   marginTop: 20,
+  //   position: 'relative',
+  // },
   fields: {
     fontSize: 20,
     fontFamily: "Bitter-Regular",
@@ -219,7 +244,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loginButton: {
-    width: 120,          // fixed width
     height: 45,          // fixed height
     borderRadius: 8,
     justifyContent: "center",
