@@ -24,15 +24,16 @@ def generate_auth_response(user: User) -> dict:
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "email": user.email
-        }
+        "user_id": user.id,
+        "name": f"{user.first_name} {user.last_name}"
     }
 
+        # "user": {
+        #     "id": user.id,
+        #     "name": f"{user.first_name} {user.last_name}",
+        #     "email": user.email
+        # }
+        
 def auth_signup(user: SignupRequest):
     """
     creates user, creates JWT token and auto login user.
@@ -91,8 +92,7 @@ def auth_google_login(token: str):
         else:
             # New user 
             user_data = {
-                    "first_name": google_user_info["given_name"],
-                    "last_name": google_user_info["family_name"],
+                    "name": f"{google_user_info['given_name']} {google_user_info['family_name']}",
                     "email": google_user_info["email"],
                     "password": None,  # No password for Google users
                     "username": None   # Optional

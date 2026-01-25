@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Form
 from models.auth import SignupRequest, GoogleLoginRequest
 from controllers.auth import *
 from middleware.auth import auth_refresh_token
+
 
 auth_router = APIRouter()
 
@@ -19,6 +20,8 @@ def google_login(request: GoogleLoginRequest):
     return auth_google_login(request.id_token)
 
 
-@auth_router.post("/auth/refresh")
-def refresh_token(refresh_token: str):
+@auth_router.post("/refresh")
+def refresh_token(
+    refresh_token: str = Form(...)
+):
     return auth_refresh_token(refresh_token)

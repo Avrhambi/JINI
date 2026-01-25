@@ -6,3 +6,22 @@
 #every __pycache__ 
 **/__pycache__
 
+*.wav
+
+
+backups
+
+current
+
+*.txt
+
+*test*
+
+local
+
+/.pytest_cache/
+
+/cache
+
+/search_index
+

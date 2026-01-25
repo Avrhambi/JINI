@@ -12,6 +12,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme
     Dependency to verify JWT token and return user details.
     Raises HTTPException if invalid.
     """
+    print("token")
     print(credentials)
     token = credentials.credentials
     payload = verify_access_token(token) 
@@ -20,6 +21,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user = get_user_by_id(payload["user_id"])
+    print(user)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     

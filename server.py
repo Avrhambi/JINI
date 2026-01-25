@@ -1,55 +1,51 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
+from routes.user import user_router
 from routes.auth import auth_router
-from routes.call import call_router
-from config import db
+from routes.call import call_router # Using the updated routes file
+import config.db as db_config # Import your MongoDB configuration
 from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
-from middleware.auth import verify_token
+from pathlib import Path   
+from utils.search_index import SearchIndexManager 
 
 
 
-UPLOAD_DIR = Path("audios")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# --- Dependency Injector Functions ---
+def get_calls_collection():
+    """Dependency for MongoDB calls collection, retrieved from config/db."""
+    if db_config.calls_collection is None:
+        raise Exception("Database not initialized.")
+    return db_config.calls_collection
 
-# start the server
-app = FastAPI()
+
+
+# --- FastAPI Setup ---
+app = FastAPI(title="JINI - Call Records Search API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or restrict to your frontend origin
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(user_router, prefix="/users", tags=["users"])
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(call_router, prefix="/calls", tags=["Calls"])
-# app.include_router(user_routes.router, prefix="/users", tags=["Users"])
+app.include_router(call_router, prefix="/calls", tags=["calls"]) 
 
-
-
-# @app.get("/test/protected_request")
-# def protected_request(user=Depends(verify_token)):
-#     return {"message": "Protected request successful ✅", "user": {"id": user.id, "email": user.email}}
- 
 
 @app.get("/")
 async def root():
-    return {"message": "Hello JINI Backend!"}
+    return {"message": "JINI backend is running"}
 
 
-#check connection to DB
+# Check connection to DB and initialize collections
 @app.on_event("startup")
 def startup_db_client():
     try:
-        db.init_db()
-        db.client.admin.command("ping")   #ping to Db
-        print("Connected to MongoDB!")
+        db_config.init_db() # Use your provided initialization function
+        db_config.client.admin.command("ping")
+        print("✅ Connected to MongoDB!")
     except Exception as e:
-        print("Could not connect to MongoDB:", e)
+        print("❌ Could not connect to MongoDB:", e)
         raise
-
-# #close connection to DB
-# @app.on_event("shutdown")
-# def shutdown_db_client():
-#     db.close_db()x
