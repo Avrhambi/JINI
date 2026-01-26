@@ -21,23 +21,6 @@ def edit_user_profile(
    return edit_user_profile_controller(current_user.id, updated_data)
 
 
-# # delete account endpoint
-# @user_router.delete("/delete")
-# def delete_user_account():  
-#     """Role: Delete a user account
-#        INPUT: user_token
-#        OUTPUT: success/failure message
-#     """
-#     pass
-
-# # edit user profile endpoint
-# @user_router.put("/edit")
-# def edit_user_profile():
-#     """Role: Edit user profile information
-#        INPUT: user_token, updated_profile_data
-#        OUTPUT: success/failure message
-#     """
-#     pass
 
 
 

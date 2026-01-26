@@ -4,8 +4,7 @@ from routes.auth import auth_router
 from routes.call import call_router # Using the updated routes file
 import config.db as db_config # Import your MongoDB configuration
 from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path   
-from utils.search_index import SearchIndexManager 
+from pathlib import Path    
 
 
 

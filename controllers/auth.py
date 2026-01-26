@@ -27,12 +27,6 @@ def generate_auth_response(user: User) -> dict:
         "user_id": user.id,
         "name": f"{user.first_name} {user.last_name}"
     }
-
-        # "user": {
-        #     "id": user.id,
-        #     "name": f"{user.first_name} {user.last_name}",
-        #     "email": user.email
-        # }
         
 def auth_signup(user: SignupRequest):
     """
