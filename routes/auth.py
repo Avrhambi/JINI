@@ -10,6 +10,7 @@ auth_router = APIRouter()
 def signup(user: SignupRequest):
     return auth_signup(user)
 
+
 @auth_router.post("/login")
 def login(user: LoginRequest):
     return auth_login(user)

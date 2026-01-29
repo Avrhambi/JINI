@@ -14,6 +14,7 @@ def upload_call_controller(user_id: str, file, metadata):
         raise HTTPException(status_code=500, detail="Transcription service failed")
     return {"message": "Upload success", "transcript": transcript}
 
+
 def search_call_controller(user_id: str, query: str):
     return search_calls_service(user_id, query)
 
@@ -23,21 +24,25 @@ def delete_call_controller(user_id: str, original_name: str):
         raise HTTPException(status_code=404, detail="Record not found")
     return {"message": "Deleted successfully"}
 
+
 def rename_call_controller(user_id: str, original_name: str, new_name: str):
     updated = update_call_name_service(user_id, original_name, new_name)
     if not updated:
         raise HTTPException(status_code=404, detail="Record not found")
     return {"message": "Renamed successfully"}
 
+
 def add_favorite_controller(user_id: str, original_name: str):
     if not toggle_favorite_service(user_id, original_name, action="add"):
         raise HTTPException(status_code=404, detail="Record not found")
     return {"message": "Added to favorites"}
 
+
 def remove_favorite_controller(user_id: str, original_name: str):
     if not toggle_favorite_service(user_id, original_name, action="remove"):
         raise HTTPException(status_code=404, detail="Record not found")
     return {"message": "Removed from favorites"}
+
 
 def get_favorites_controller(user_id: str):
     return get_user_favorites_service(user_id)

@@ -56,15 +56,7 @@ def create_google_user(google_info: dict) -> User:
     except DuplicateKeyError:
         raise
 
-# def get_user_by_email(email: str):
-#     """
-#     Return user object from MongoDB by email, or None if not found.
-#     """
-#     user_dict = db.users_collection.find_one({"email": email}) # DB returns user dictionary
-#     if not user_dict:
-#         return None
-#     user_dict["id"] = str(user_dict["_id"])  # convert ObjectId to string
-#     return User(**user_dict) # converts a dict into named arguments for the constructor
+
 def get_user_by_email(email: str):
     """
     Return user object from MongoDB by email, or None if not found.
@@ -81,6 +73,7 @@ def get_user_by_email(email: str):
     
     # 3. יצירת האובייקט - Pydantic ימפה את "_id" ל-"id" אוטומטית
     return User(**user_dict)
+
 
 def get_user_by_id(user_id: str):
     """
@@ -103,17 +96,6 @@ def get_user_by_id(user_id: str):
     
     # 3. יצירת אובייקט ה-User כעת כשהנתונים בפורמט הנכון
     return User(**user_dict)
-
-# def get_user_by_id(user_id: str):
-#     """
-#     Return the user from MongoDB by ObjectId, or None if not found.
-#     """
-#     try:
-#         obj_id = ObjectId(user_id)
-#     except Exception:
-#         return None  # invalid id format
-
-#     return User(**(db.users_collection.find_one({"_id": obj_id})))
 
 
 def get_user_by_google_id(google_id:str) -> User:

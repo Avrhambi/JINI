@@ -27,7 +27,8 @@ def generate_auth_response(user: User) -> dict:
         "user_id": user.id,
         "name": f"{user.first_name} {user.last_name}"
     }
-        
+
+
 def auth_signup(user: SignupRequest):
     """
     creates user, creates JWT token and auto login user.
@@ -41,7 +42,6 @@ def auth_signup(user: SignupRequest):
         raise HTTPException(status_code=500, detail=f"Internal Server error: {str(e)}" )
     
     return  generate_auth_response(new_user)
-
 
 
 def auth_login(user_data: LoginRequest):
@@ -64,7 +64,6 @@ def auth_login(user_data: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid password")
     
     return  generate_auth_response(user)
-
 
 
 def auth_google_login(token: str):

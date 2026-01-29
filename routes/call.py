@@ -42,12 +42,14 @@ async def upload_callrecord(
     return upload_call_controller(current_user.id, audio_file, metadata)
 
 
+
 @call_router.post("/search")
 def search(
     query: str = Form(...),
     current_user: dict = Depends(verify_token)
 ):
     return search_call_controller(current_user.id, query)
+
 
 
 @call_router.delete("/delete")
@@ -58,6 +60,7 @@ def delete_callrecord(
     
     return delete_call_controller(current_user.id, original_name)
 
+
 @call_router.post("/rename")
 def rename_callrecord(
     original_name: str = Form(...), 
@@ -66,6 +69,7 @@ def rename_callrecord(
 ):
     return rename_call_controller(current_user.id, original_name, new_name)
 
+
 @call_router.post("/favorites/add")
 def add_favorite_call(
     original_name: str = Form(...), 
@@ -73,12 +77,14 @@ def add_favorite_call(
 ):
     return add_favorite_controller(current_user.id, original_name)
 
+
 @call_router.post("/favorites/remove")
 def remove_favorite_call(
     original_name: str = Form(...), 
     current_user: dict = Depends(verify_token)
 ):
     return remove_favorite_controller(current_user.id, original_name)
+
 
 @call_router.get("/favorites", response_model=List[CallRecord])
 def get_favorites_calls(current_user: dict = Depends(verify_token)):

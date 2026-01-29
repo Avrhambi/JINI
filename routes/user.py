@@ -9,15 +9,16 @@ user_router = APIRouter()
 
 @user_router.delete("/delete")
 def delete_user_account(current_user: User = Depends(verify_token)):  
-    """Role: Delete a user account using the controller."""
+    """Delete a user account using the controller."""
     return delete_user_controller(current_user.id)
+
 
 @user_router.put("/edit")
 def edit_user_profile(
     updated_data: UserUpdate, 
     current_user: User = Depends(verify_token)
 ):
-   """Role: Edit user profile using the controller."""
+   """Edit user profile using the controller."""
    return edit_user_profile_controller(current_user.id, updated_data)
 
 

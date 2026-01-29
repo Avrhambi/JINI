@@ -1,7 +1,5 @@
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-# from google.oauth2 import id_token
-# from google.auth.transport import requests
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import jwt
@@ -48,6 +46,7 @@ def verify_access_token(token: str):
     except jwt.InvalidTokenError: #invalid token
         return None
     
+
 def verify_refresh_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"]) #extract the saved info in the token 
@@ -56,7 +55,6 @@ def verify_refresh_token(token: str):
         return None
     except jwt.InvalidTokenError: #invalid token
         return None
-
 
 
 def verify_google_token(token: str) -> dict:

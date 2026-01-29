@@ -8,17 +8,7 @@ from pathlib import Path
 
 
 
-# --- Dependency Injector Functions ---
-def get_calls_collection():
-    """Dependency for MongoDB calls collection, retrieved from config/db."""
-    if db_config.calls_collection is None:
-        raise Exception("Database not initialized.")
-    return db_config.calls_collection
-
-
-
-# --- FastAPI Setup ---
-app = FastAPI(title="JINI - Call Records Search API")
+app = FastAPI(title="JINI - Backend")
 
 app.add_middleware(
     CORSMiddleware,

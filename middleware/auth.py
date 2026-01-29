@@ -12,8 +12,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme
     Dependency to verify JWT token and return user details.
     Raises HTTPException if invalid.
     """
-    print("token")
-    print(credentials)
     token = credentials.credentials
     payload = verify_access_token(token) 
 
