@@ -83,15 +83,8 @@ This command will:
 
 #### Step 5: Configure Environment Variables
 
-Create a `.env` file in the project root with:
-
-```env
-MONGODB_URL=mongodb://localhost:27017
-DATABASE_NAME=jini
-SEARCH_SERVICE_URL=http://localhost:5000
-SECRET_KEY=your_jwt_secret_key
-ALGORITHM=HS256
-```
+Rename the .env.example file to .env  
+and init assign the veraibles values
 
 ### Running the Application
 
@@ -289,19 +282,13 @@ GET /calls/favorites            # Get all favorite calls
 Run all tests in the tests folder:
 
 ```bash
-pytest tests/
+python -m pytest tests/test_jini_backend.py
 ```
 
 Run tests with verbose output:
 
 ```bash
-pytest tests/ -v
-```
-
-Run a specific test file:
-
-```bash
-pytest tests/test_jini_backend.py -v
+python -m pytest -v tests/test_jini_backend.py
 ```
 
 ### Test Suite Overview

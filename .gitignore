@@ -6,25 +6,9 @@
 #every __pycache__ 
 **/__pycache__
 
-node_modules
-
-/.expo
-
-backups
-
 current
-
-*.txt
-
-*test*
-
-local
-
-local_tests
 
 /.pytest_cache/
 
-/cache
 
-/search_index
 
