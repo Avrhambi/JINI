@@ -84,7 +84,7 @@ def auth_google_login(token: str):
         else:
             # New user 
             user_data = {
-                    "username": None,  # Optional
+                    "username": google_user_info["email"].split('@')[0],  
                     "first_name": google_user_info["given_name"],
                     "last_name": google_user_info["family_name"],
                     "email": google_user_info["email"],
