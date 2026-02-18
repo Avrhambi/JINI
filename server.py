@@ -1,91 +1,170 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware # Added for speed
-from fastapi.responses import ORJSONResponse # Added for speed
-from contextlib import asynccontextmanager # Added for better startup
-from routes.user import user_router
-from routes.auth import auth_router
-from routes.call import call_router
-import config.db as db_config
+# local/server.py
+import os
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from faster_whisper import WhisperModel
+from sentence_transformers import SentenceTransformer
+from storage import Storage
+from search_engine import SearchEngine
+from dotenv import load_dotenv
+from transformers import logging as transformers_logging
+import traceback
+
+load_dotenv()
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
-# 1. Lifespan handles startup and shutdown cleanly
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+# constants
+MIN_WORDS, MIN_DURATION, MAX_WORDS = 6, 3.5, 22
+
+# models initialization
+print("⏳ Loading local models and DB...")
+storage = Storage(mongo_uri="mongodb://localhost:27017")
+
+transformers_logging.set_verbosity_error() # suppress transformers warnings about quantized models
+embedder = SentenceTransformer("intfloat/multilingual-e5-small")
+
+query_llm = "gemini-2.0-flash"
+search_llm = "gemini-2.5-flash"
+query_agent_api_key = os.getenv("FLASH_2_API_KEY")
+search_agent_api_key = os.getenv("FLASH_2.5_API_KEY")
+search_engine = SearchEngine(
+    storage, 
+    embedder, 
+    query_agent_api_key=query_agent_api_key,
+    search_agent_api_key=search_agent_api_key,
+    query_model_name=query_llm,
+    search_model_name=search_llm
+)
+
+whisper_model = WhisperModel("ivrit-ai/whisper-large-v3-turbo-ct2", device="cpu", compute_type="int8")
+
+
+
+def transcribe(audio_path: str):
+    """Trancribe audio and adds word-level timestamps"""
+    segments, _ = whisper_model.transcribe(audio_path, word_timestamps=True)
+    words = []
+    for seg in segments:
+        for w in seg.words:
+            words.append({"word": w.word.strip(), "start": w.start, "end": w.end})
+    return words
+
+
+def reconstruct_sentences(words):
+    """Create sentences from transcribed words using heuristics"""
+    sentences = []
+    buffer = []
+    start_time = None
+
+    # helper function to flush buffer into sentences
+    def flush(end_time):
+        nonlocal buffer, start_time # access outer scope variables
+        if not buffer: return 
+        text = " ".join(w["word"] for w in buffer) # reconstruct text
+        sentences.append({"text": text, "start": start_time, "end": end_time}) # save sentence
+        buffer = []
+        start_time = None 
+
+    for i, w in enumerate(words):
+        if not buffer: start_time = w["start"] 
+        buffer.append(w) 
+
+        duration = w["end"] - start_time
+        word_count = len(buffer) 
+
+        
+        ends_with_bad_word = w["word"] in ["ו", "אז", "אבל", "כי", "ש", "אם", "או", "ל"]
+        ends_with_punctuation = any(char in w["word"] for char in [".", "?", "!", ";"])
+
+        if word_count >= MAX_WORDS: 
+            flush(w["end"]) # flush if sentence too long
+        elif (word_count >= MIN_WORDS and duration >= MIN_DURATION and ends_with_punctuation and (not ends_with_bad_word)):
+            flush(w["end"]) # flush on when sentence ends properly
+
+    if buffer: flush(buffer[-1]["end"]) # flush remaining buffer
+    return sentences
+
+
+def build_blocks(sentences, block_size=6, step=2):
+    """Build text blocks with overlap from sentences"""
+    blocks = []
+    for i in range(0, len(sentences), step):
+        block_sentences = sentences[i : i + block_size]
+        if len(block_sentences) < 2 and i > 0:
+            break
+
+        block_text = " ".join([s['text'] for s in block_sentences])
+        blocks.append({
+            "window_text": block_text,
+            "sentences": block_sentences,
+            "start": block_sentences[0]['start'],
+            "end": block_sentences[-1]['end']
+        })
+    return blocks
+
+
+# ==========================================
+# API Routes
+# ==========================================
+
+@app.route('/upload', methods=['POST'])
+def upload_and_process():
+    """streaming upload and processing endpoint"""
+    user_id = request.form.get('user_id')
+    file = request.files.get('file')
+    print(f"Received upload request from user_id: {user_id}")
+    
+    if not user_id or not file:
+        return jsonify({"error": "Missing data"}), 400
+
+    # saving temp file for processing
+    temp_path = f"temp_{file.filename}"
+    file.save(temp_path)
+    
     try:
-        db_config.init_db()
-        print("✅ Connected to MongoDB via Connection Pool")
+        print("⏳ Processing audio...")
+        # performing transcription
+        words = transcribe(temp_path)
+        sentences = reconstruct_sentences(words)
+        full_transcript = " ".join([s['text'] for s in sentences])
+        blocks = build_blocks(sentences)
+
+        # embedding
+        texts = [f"passage: {b['window_text']}" for b in blocks]
+        embeddings = embedder.encode(texts, normalize_embeddings=True, batch_size=32)
+
+        # storing in DB
+        storage.save_windows(file_name=file.filename, blocks=blocks, embeddings=embeddings.tolist(), full_transcript=full_transcript, user_id=user_id)
+        
+        # cleanup temp file
+        os.remove(temp_path)
+        return jsonify({"status": "success", "transcript": full_transcript}), 200
+
     except Exception as e:
-        print("❌ Could not connect to MongoDB:", e)
-    yield
-    db_config.close_db()
+        traceback.print_exc() # print full traceback for debugging
+        if os.path.exists(temp_path): os.remove(temp_path)
+        return jsonify({"error": str(e)}), 500
+    
 
-# 2. Use ORJSONResponse as default for faster data encoding
-app = FastAPI(
-    title="JINI - Backend", 
-    default_response_class=ORJSONResponse,
-    lifespan=lifespan
-)
-
-# 3. Compress responses over 1000 bytes 
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Routes
-app.include_router(user_router, prefix="/users", tags=["users"])
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(call_router, prefix="/calls", tags=["calls"]) 
-
-@app.get("/")
-async def root():
-    return {"message": "JINI backend is running"}
+@app.route('/search', methods=['GET'])
+def search():
+    """search audios by query"""
+    query = request.args.get('q')
+    user_id = request.args.get('user_id')
+    
+    if not query or not user_id:
+        return jsonify({"error": "Missing query or user_id"}), 400
+        
+    results = search_engine.search(query, user_id=user_id)
+    return jsonify({"results": results})
 
 
-
-# from fastapi import FastAPI
-# from routes.user import user_router
-# from routes.auth import auth_router
-# from routes.call import call_router # Using the updated routes file
-# import config.db as db_config # Import your MongoDB configuration
-# from fastapi.middleware.cors import CORSMiddleware
-  
+@app.route('/', methods=['GET'])
+def root():
+    return {"message": "Search engine is running"}
 
 
-
-# app = FastAPI(title="JINI - Backend")
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-# app.include_router(user_router, prefix="/users", tags=["users"])
-# app.include_router(auth_router, prefix="/auth", tags=["auth"])
-# app.include_router(call_router, prefix="/calls", tags=["calls"]) 
-
-
-# @app.get("/")
-# async def root():
-#     return {"message": "JINI backend is running"}
-
-
-# # Check connection to DB and initialize collections
-# @app.on_event("startup")
-# def startup_db_client():
-#     try:
-#         db_config.init_db() # Use your provided initialization function
-#         db_config.client.admin.command("ping")
-#         print("✅ Connected to MongoDB!")
-#     except Exception as e:
-#         print("❌ Could not connect to MongoDB:", e)
-#         raise
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)

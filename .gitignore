@@ -1,14 +1,1 @@
 .env
-
-#virtual environment folder
-/venv
-
-#every __pycache__ 
-**/__pycache__
-
-current
-
-/.pytest_cache/
-
-
-
