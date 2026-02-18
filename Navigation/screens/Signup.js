@@ -1,136 +1,187 @@
-import React from "react";
-import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityIndicator, FlatList, ScrollView, KeyboardAvoidingView} from "react-native";
-import { LinearGradient} from "expo-linear-gradient";
+import React, { useState, useContext } from "react";
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  Image, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  KeyboardAvoidingView
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import * as Progress from 'react-native-progress';
-import {  saveUserCredentials } from '../../utils/auth';
-
+import { validateSignupForm, performSignup } from '../../services/SignupServices';
+import { AuthContext } from "../../utils/AuthContext";
 
 export default function SignUpScreen() {
-  const [UserName, setUsername] = React.useState("");
-  const [Password, setPassword] = React.useState("");
-  const [ConfirmPassword, setConfirmPassword] = React.useState("");
-  const [FirstName, setFirstName] = React.useState("");
-  const [LastName, setLastName] = React.useState("");
-  const [Email, setEmail] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState('');
+  // --- Form State ---
+  const [UserName, setUsername] = useState("");
+  const [Password, setPassword] = useState("");
+  const [ConfirmPassword, setConfirmPassword] = useState("");
+  const [FirstName, setFirstName] = useState("");
+  const [LastName, setLastName] = useState("");
+  const [Email, setEmail] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const { signIn } = useContext(AuthContext);
+  
+  // --- UI State ---
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
   const navigation = useNavigation();
-  const allFieldsFilled = UserName && Email && Password && ConfirmPassword && FirstName && LastName;
-  const passwordsMatch = Password === ConfirmPassword;
 
-  const handle_signup = () => {
-    // const BASE_URL = 'http://192.168.1.144:8000'
-    // const BASE_URL = 'http://192.168.1.93:8000'
-    const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
-
+  /**
+   * Orchestrates the signup process using external services
+   */
+  const handle_signup = async () => {
     setError('');
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-      
-    if (!allFieldsFilled) {
-      setError('All fields are required.');
-      return;
-    }
-    if (!emailRegex.test(Email)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    if (!passwordRegex.test(Password)) {
-      setError('Password do not match requirements.');
-      return;
-    }
-    if (!passwordsMatch) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    setLoading(true);
-    const timeout = (ms) =>
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Request timed out")), ms)
-      );
-
-  Promise.race([
-    fetch(`${BASE_URL}/auth/signup`, {   // no trailing slash needed
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({username:UserName,first_name:FirstName, last_name:LastName, email:Email, password:Password })
-    }),
-    timeout(8000)
-  ])
-    .then(async (response) => {
-      const data = await response.json();
-      if (!response.ok) {
-        setLoading(false);
-        if (data.detail && data.detail.includes("email")) {
-          setError("Email is already in use.");
-        } else {
-          setError(data.detail || "Signup failed. Please try again.");
-        }
-        return;
-      }
-      const userInfo = {
-        id: data["user_id"],
-        email: Email,
-        name: `${FirstName} ${LastName}`
-      };
-      await saveUserCredentials(data.access_token, data.refresh_token, userInfo);
-      setLoading(false);
-      navigation.navigate('Login');
-    })
-    .catch((error) => {
-      setLoading(false);
-      if (error.message === "Request timed out") {
-        setError("Server took too long to respond. Please try again.");
-      } else {
-        setError(`Network error. Please try again. ${error.message}`);
-      }
+    // 1. Validation Logic
+    const validationError = validateSignupForm({ 
+      UserName, Email, Password, ConfirmPassword, FirstName, LastName 
     });
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    // 2. Execution Logic
+    setLoading(true);
+    const result = await performSignup({ 
+      UserName, Email, Password, FirstName, LastName 
+    });
+    setLoading(false);
+    
+    if (result.success) {
+      await signIn(result.accessToken, result.refreshToken, result.user);
+    } else {
+      setError(result.error);
+    }
   };
 
-    return (
+  // set the password visibility for both password and confirm password fields
+  const togglePasswordVisibility = (type) => {
+    if (type === 'password') {
+      setPasswordVisible(!passwordVisible);
+    } else if (type === 'confirmPassword') {
+      setConfirmPasswordVisible(!confirmPasswordVisible);
+    }
+  }
+  return (
     <LinearGradient
       colors={["#E1E6E7", "#ADC3C7", "#424242"]}
-      locations={[0.25, 0.63, 1]}   // match your figma stops
+      locations={[0.25, 0.63, 1]}
       style={styles.container}
     >
+      {/* Header Section */}
       <View style={styles.topSection}>
-        <View style = {styles.logo}>
-            <Text style={styles.title}>JINI</Text>
-            <Image
-                source={require("../../assets/genie-512.png")} // path to your PNG
-                style={styles.icon}
-                resizeMode="center" // ensures it scales properly
-                />
+        <View style={styles.logo}>
+          <Text style={styles.title}>JINI</Text>
+          <Image
+            source={require("../../assets/genie-512.png")}
+            style={styles.icon}
+            resizeMode="center"
+          />
         </View>
       </View>
+
+      {/* Input Form Section */}
       <KeyboardAvoidingView behavior="height" style={{ flex: 1, width: '100%' }}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.middleSection} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.middleSection} 
+          showsVerticalScrollIndicator={true} 
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.fieldsBox}>
-            <TextInput style={styles.fields} placeholder="First Name" placeholderTextColor="#ffffff" value={FirstName} onChangeText={setFirstName} />
+            <TextInput 
+              style={styles.fields} 
+              placeholder="First Name" 
+              placeholderTextColor="#ffffff" 
+              value={FirstName} 
+              onChangeText={setFirstName} 
+            />
           </View>
+
           <View style={styles.fieldsBox}>
-            <TextInput style={styles.fields} placeholder="Last Name" placeholderTextColor="#ffffff" value={LastName} onChangeText={setLastName} />
+            <TextInput 
+              style={styles.fields} 
+              placeholder="Last Name" 
+              placeholderTextColor="#ffffff" 
+              value={LastName} 
+              onChangeText={setLastName} 
+            />
           </View>
+
           <View style={styles.fieldsBox}>
-            <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={Email} onChangeText={setEmail} autoCapitalize="none" />
+            <TextInput 
+              style={styles.fields} 
+              placeholder="Email" 
+              placeholderTextColor="#ffffff" 
+              value={Email} 
+              onChangeText={setEmail} 
+              autoCapitalize="none" 
+            />
           </View>
+
           <View style={styles.fieldsBox}>
-            <TextInput style={styles.fields} placeholder="Username" placeholderTextColor="#ffffff" value={UserName} onChangeText={setUsername} autoCapitalize="none" />
+            <TextInput 
+              style={styles.fields} 
+              placeholder="Username" 
+              placeholderTextColor="#ffffff" 
+              value={UserName} 
+              onChangeText={setUsername} 
+              autoCapitalize="none" 
+            />
           </View>
-          <View style={styles.fieldsBox}>
-            <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={Password} onChangeText={setPassword} secureTextEntry={true} autoCapitalize="none" />
+
+          <View style={[styles.fieldsBox, { flexDirection: 'row', justifyContent: 'space-between' }]}>
+            <TextInput 
+              style={[styles.fields, { paddingRight: 40 }]} 
+              placeholder="Password" 
+              placeholderTextColor="#ffffff" 
+              value={Password} 
+              onChangeText={setPassword} 
+              secureTextEntry={!passwordVisible} 
+              autoCapitalize="none" 
+            />
+            <TouchableOpacity onPress={() => togglePasswordVisibility('password')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+             <Ionicons name={passwordVisible ? 'eye-outline' : 'eye-off-outline'} size={24} color='#ffffff' style={{ position: 'absolute', right: 10, top: 13}} />
+            </TouchableOpacity>
           </View>
-          <View style={styles.fieldsBox}>
-            <TextInput style={styles.fields} placeholder="Confirm Password" placeholderTextColor="#ffffff" value={ConfirmPassword} onChangeText={setConfirmPassword} secureTextEntry={true} autoCapitalize="none" />
+
+
+          <View style={[styles.fieldsBox, { flexDirection: 'row', justifyContent: 'space-between' }]}>
+            <TextInput 
+              style={[styles.fields, { paddingRight: 40 }]} 
+              placeholder="Confirm Password" 
+              placeholderTextColor="#ffffff" 
+              value={ConfirmPassword} 
+              onChangeText={setConfirmPassword} 
+              secureTextEntry={!confirmPasswordVisible} 
+              autoCapitalize="none" 
+            />
+          <TouchableOpacity onPress={() => togglePasswordVisibility('confirmPassword')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+           <Ionicons name={confirmPasswordVisible ? 'eye-outline' : 'eye-off-outline'} size={24} color='#ffffff' style={{ position: 'absolute', right: 10, top: 13 }} />
+          </TouchableOpacity>
           </View>
+
+          {/* Action Section */}
           <View style={styles.LoginBox}>
-            <TouchableOpacity onPress={handle_signup} disabled={loading} style={styles.loginButton}>
+            <TouchableOpacity 
+              onPress={handle_signup} 
+              disabled={loading} 
+              style={styles.loginButton}
+            >
               {loading ? (
                 <Progress.Circle 
                   size={32} 
@@ -146,11 +197,10 @@ export default function SignUpScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>    
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -172,65 +222,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 40,
   },
-  button: {
-    backgroundColor: "#2D5C5C",
-    fontFamily: "Bitter-Regular",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 20,
-  },
   icon: {
     width: 39,
     height: 39,
     marginBottom: 10,
   },
- 
-  
   logo: {
     alignItems: 'center',
   },
   scrollView: {
     flex: 1,
   },
-
-  
-
-  // signup: {
-  //   backgroundColor: "#2D5C5C",
-  //   fontFamily: "Bitter-Regular",
-  //   paddingHorizontal: 20,
-  //   paddingVertical: 10,
-  //   borderRadius: 10,
-  //   color: "#fff",
-  //   fontSize: 32,
-  //   alignContent: 'center',
-  //   top: 20,
-  // },
-  // signupBox: {
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  //   marginTop: 20,
-  //   position: 'relative',
-  // },
   fields: {
     fontSize: 20,
     fontFamily: "Bitter-Regular",
     color: "#ffffff",
-
-  },fieldsBox: {
+    width: '100%',
+  },
+  fieldsBox: {
     backgroundColor: "#2D5C5C",
     borderRadius: 10,
     width: "80%",
     paddingVertical: "1%",
     marginBottom: 20,
     paddingHorizontal: 10,
-  },
-  bottomSection: {
-    flex: 1,
-    justifyContent: "flex-end",
-    alignItems: "center",
-    paddingBottom: 20,
   },
   error: {
     position: 'absolute',
@@ -244,7 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loginButton: {
-    height: 45,          // fixed height
+    height: 45,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",

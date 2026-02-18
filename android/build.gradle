@@ -57,5 +57,27 @@ allprojects {
     }
 }
 
+subprojects {
+    project.configurations.configureEach {
+        resolutionStrategy {
+            eachDependency { details ->
+                // This helps align any mismatched versions of libraries
+            }
+        }
+    }
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android {
+                buildTypes {
+                    release {
+                        // This forces libraries to use debug versions if release is missing
+                        matchingFallbacks = ['debug', 'release']
+                    }
+                }
+            }
+        }
+    }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"

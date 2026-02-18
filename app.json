@@ -13,16 +13,20 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "versionCode": 1,
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.JINI"
+      "package": "com.anonymous.JINI",
+      "versionCode": 1,
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,13 +35,33 @@
       "expo-font",
       "expo-secure-store",
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      "expo-router",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.56386705598-ecbplsu6n9cj2ht3mfcfj800g9sm41ma"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},
       "eas": {
         "projectId": "43c2fba3-9e35-4248-b5fe-de0938abfe23"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/43c2fba3-9e35-4248-b5fe-de0938abfe23",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 30000
     }
   }
 }

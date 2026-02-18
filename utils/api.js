@@ -1,36 +1,36 @@
 import { getAccessToken, getRefreshToken, saveTokens, removeTokens } from './auth';
 
-// const BASE_URL = 'http://192.168.1.144:8000'; // your backend
+const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
 // Generic fetch wrapper
 export const apiFetch = async (endpoint, options = {}) => {
   let accessToken = await getAccessToken();
-  console.log (accessToken)
-  console.log(endpoint)
-  console.log("before token",options)
-
-  // Add Authorization header
-  options.headers = {
+  const headers = {
     ...(options.headers || {}),
-    'Content-Type': 'application/json',
     Authorization: `Bearer ${accessToken}`
   };
 
-  console.log("after token", options)
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  options.headers = headers;
   let response = await fetch(`${BASE_URL}${endpoint}`, options);
+
 
   // If token expired, try refresh
   if (response.status === 401) {
     const refreshToken = await getRefreshToken();
+
     if (!refreshToken) {
       throw new Error('Not authenticated');
     }
-
+    const formdata = new FormData();
+    formdata.append('refresh_token', refreshToken);
     // Request new access token
     const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      headers: { 'Content-Type': 'multipart/form-data' },
+      body: formdata,
     });
 
     if (!refreshResponse.ok) {

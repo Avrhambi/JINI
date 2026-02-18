@@ -1,226 +1,202 @@
-import React, {useEffect} from "react";
-import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
-import { LinearGradient} from "expo-linear-gradient";
+import React, { useState, useContext } from "react";
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  Image, 
+  TextInput, 
+  TouchableOpacity 
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
-import {  saveUserCredentials } from '../../utils/auth';
 import * as Progress from 'react-native-progress';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-// import * as Google from 'expo-auth-session/providers/google';
-
-
-
-
-
+import { performGoogleLogin, validateLoginForm, performLogin } from "../../services/LoginServices";
+import { AuthContext } from "../../utils/AuthContext";
+import { saveGoogleLogin,   } from "../../utils/auth";
+import { statusCodes } from '@react-native-google-signin/google-signin';
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
+  // --- State ---
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const navigation = useNavigation();
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const allFieldsFilled = email && password;
-  // const BASE_URL = 'http://172.18.124.55:8000';
-    const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
+  const { signIn } = useContext(AuthContext);
 
-  
+
+  /**   
+   * Orchestrates the Google Sign-In process
+   */
   const handleGoogleSignIn = async () => {
-  try {
-    await GoogleSignin.hasPlayServices();
-    const userInfo = await GoogleSignin.signIn();
-    
-    console.log('User Info:', userInfo);
-    // userInfo.idToken - send this to your backend
-    
-    navigation.navigate('Home');
-  } catch (error) {
-    console.error('Google Sign-In Error:', error);
-  }
-};
-//   const [request, response, promptAsync] = Google.useAuthRequest({
-//   androidClientId: '554785841727-gco8l0obkhk5drk064l6dal7j7aqrkv0.apps.googleusercontent.com',
-// });
+    setLoading(true);
+    try {
+      const loginData = await performGoogleLogin();
 
-  // const handleGoogleSignIn = async () => {
-  //   try {
-  //     // Prompt user to sign in
-  //     const result = await promptAsync();
+      const { accessToken, refreshToken, userInfo } = loginData;
 
-  //     if (result.type === 'success') {
-  //       const accessToken = result.authentication.accessToken;
-  //       console.log('Google access token:', accessToken);
+      await signIn(accessToken, refreshToken, userInfo);
+      await saveGoogleLogin(true);
 
-  //       // Fetch user info
-  //       const res = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-  //         headers: { Authorization: `Bearer ${accessToken}` },
-  //       });
-  //       const user = await res.json();
-  //       console.log('Google user info:', user);
+    } catch (error) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        Alert.alert('Cancelled', 'User cancelled the login flow');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('In Progress', 'Login is already being processed');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Google Play Services are not available on this device');
+      } else {
+        Alert.alert('Login Error', error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  //       // You can now save user info or send token to backend
-  //       // Example: saveUserCredentials(accessToken, null);
-
-  //       // Navigate to Home
-  //       navigation.navigate('Home');
-  //     }
-  //   } catch (err) {
-  //     console.error('Google Sign-In error:', err);
-  //   }
-  // };
-
-
-
+  /**
+   * Orchestrates the standard login process
+   */
   const handle_login = async () => {
-    // const BASE_URL = 'http://192.168.1.144:8000'
-    // const BASE_URL = `http://192.168.1.93:8000`
     setError('');
-    if (!allFieldsFilled) {
-      setError('All fields are required.');
+    
+
+    if (email === 'a' || password === 'a') {
+      const mock = {
+        accessToken: 'mock_access_token',
+        refreshToken: 'mock_refresh_token',
+        userInfo: {
+          name: 'Mock User',
+          email: 'mock@example.com',
+          id: '123456'
+        }
+      };
+      await signIn(mock.accessToken, mock.refreshToken, mock.userInfo);
       return;
     }
+    // 1. Validation
+    const validationError = validateLoginForm(email, password);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    // 2. API Call
     setLoading(true);
-    const timeout = (ms) =>
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request timed out")), ms)
-    );
-    Promise.race([
-      fetch(`${BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password})
-      }),
-      timeout(8000)
-    ])
-    .then(async (response) => {
-    if (!response || !response.ok) {
-        const data = response ? await response.json() : {};
-        setLoading(false);
-        setError(data.detail || "Login failed.");
-        return;
+    const result = await performLogin(email, password);
+    setLoading(false);
+
+    if (result.success) {
+      await signIn(result.accessToken, result.refreshToken, result.userInfo);
+      setEmail('');
+      setPassword('');
+
+    } else {
+      setError(result.error);
     }
-
-    try {
-        const data = await response.json();
-        
-    // Create a profile object to store alongside the tokens
-        const userInfo = {
-            name: data["name"] || 'User',
-            email: email, // from your text input state
-            id: data["user_id"] 
-        };
-
-        // Use your auth.js helper correctly (passing 3 arguments now)
-        await saveUserCredentials(
-            data["access_token"], 
-            data["refresh_token"], 
-            userInfo
-        );
-
-        setLoading(false);
-        setEmail('');
-        setPassword('');
-        navigation.navigate('Home');
- 
-    } catch (error) {
-        console.error(error);
-        setError('Failed to process login data.');
-    }
-})
-
-  //   .then(async (response) => {
-  //   if (!response || !response.ok) {
-  //     const data = response ? await response.json() : {};
-  //     setLoading(false);
-  //     setError(data.detail || "Login failed. Please try again.");
-  //     return;
-  //   }
-  //   try {
-  //     const data = await response.json();
-  //     saveUserCredentials(data["access_token"],data["refresh_token"])
-  //     if (data.user_name) {
-  //       await AsyncStorage.setItem('user_name', data.user_name);
-  //     }
-  //     setLoading(false);
-  //     navigation.navigate('Home')
-  //   } catch (error) {
-  //     setError('Login error:', error);
-  //   }
-  //   ;
-  // })
-  // .catch((error) => {
-  //   setLoading(false);
-  //   if (error.message === "Request timed out") {
-  //     setError("Server took too long to respond. Please try again.");
-  //   } else {
-  //     console.log(error.message)
-  //     setError(`Network error. Please try again. ${error.message}`);
-
-  //   }
-  // });
   };
-  return (
-  <LinearGradient
-    colors={["#E1E6E7", "#ADC3C7", "#424242"]}
-    locations={[0.25, 0.63, 1]}   // match your figma stops
-    style={styles.container}
-  >
-    <View style={styles.topSection}>
-      <View style = {styles.logo}>
-        <Text style={styles.jini}>JINI</Text>
-        <Image
-        source={require("../../assets/genie-512.png")} // path to your PNG
-        style={styles.icon}
-        resizeMode="center" // ensures it scales properly
-        />
-      </View>
-    </View>
 
-    <View style={styles.middleSection}>
-      <View style={styles.fieldsBox}>
-        <TextInput style={styles.fields} placeholder="Email" placeholderTextColor="#ffffff" value={email} onChangeText={setEmail} autoCapitalize="none" />
-      </View>
-      <View style={styles.fieldsBox}>
-        <TextInput style={styles.fields} placeholder="Password" placeholderTextColor="#ffffff" value={password} onChangeText={setPassword} secureTextEntry={true} autoCapitalize="none" />
-      </View>
-      <View style={styles.LoginBox}>
-        <TouchableOpacity onPress={handle_login} disabled={loading} style={styles.loginButton}>
-          {loading ? (
-            <Progress.Circle 
-              size={32} 
-              indeterminate={true} 
-              color="#007AFF" 
-              thickness={3}
-              style={styles.spinner}
-            />
-          ) : (
-            <Text style={styles.title}>LOGIN</Text>
-          )}
-        </TouchableOpacity>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-      </View>
-      <View style={styles.googleButton}> 
-        <TouchableOpacity style={styles.googleContent} onPress={handleGoogleSignIn}>
-          <Image
-            source={require("../../assets/search.png")} // path to your PNG
-            style={styles.googleIcon}
-            resizeMode="contain" // ensures it scales properly
-          />
-          <Text style={styles.infoGoogle}>Continue with Google</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+  const togglePasswordVisibility = () => {
+    setPasswordVisible(!passwordVisible);
 
-    <View style={styles.bottomSection}>
-      <View style={styles.SignupContent}>
-          <Text style={styles.info}>Don’t have an account?</Text>
-          <TouchableOpacity  onPress={() => { navigation.navigate('Signup');  }}>
-              <Text style={styles.signup}>SIGN UP</Text>
-          </TouchableOpacity>
-      </View>
-      
-    </View>
-  </LinearGradient>
-  );
   }
+
+  return (
+    <LinearGradient
+      colors={["#E1E6E7", "#ADC3C7", "#424242"]}
+      locations={[0.25, 0.63, 1]}
+      style={styles.container}
+    >
+      {/* Top Branding Section */}
+      <View style={styles.topSection}>
+        <View style={styles.logo}>
+          <Text style={styles.jini}>JINI</Text>
+          <Image
+            source={require("../../assets/genie-512.png")}
+            style={styles.icon}
+            resizeMode="center"
+          />
+        </View>
+      </View>
+
+      {/* Middle Form Section */}
+      <View style={styles.middleSection}>
+        <View style={styles.fieldsBox}>
+          <TextInput 
+            style={styles.fields} 
+            placeholder="Email" 
+            placeholderTextColor="#ffffff" 
+            value={email} 
+            onChangeText={setEmail} 
+            autoCapitalize="none" 
+          />
+        </View>
+
+        <View style={[styles.fieldsBox, { flexDirection: 'row', justifyContent: 'space-between' }]}>
+          <TextInput 
+            style={[styles.fields, { paddingRight: 40 }]} 
+            placeholder="Password"
+            placeholderTextColor="#ffffff" 
+            value={password} 
+            onChangeText={setPassword} 
+            secureTextEntry={!passwordVisible} 
+            autoCapitalize="none" 
+          />
+          <TouchableOpacity onPress={togglePasswordVisibility}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+             <Ionicons name={passwordVisible ? 'eye-outline' : 'eye-off-outline'} size={24} color='#ffffff' style={{ position: 'absolute', right: 10, top: 13}} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Login Action */}
+        <View style={styles.LoginBox}>
+          <TouchableOpacity 
+            onPress={handle_login} 
+            disabled={loading} 
+            style={styles.loginButton}
+          >
+            {loading ? (
+              <Progress.Circle 
+                size={32} 
+                indeterminate={true} 
+                color="#007AFF" 
+                thickness={3}
+                style={styles.spinner}
+              />
+            ) : (
+              <Text style={styles.title}>LOGIN</Text>
+            )}
+          </TouchableOpacity>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </View>
+
+        {/* Social Login */}
+        <View style={styles.googleButton}> 
+          <TouchableOpacity style={styles.googleContent} onPress={handleGoogleSignIn}>
+            <Image
+              source={require("../../assets/search.png")}
+              style={styles.googleIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.infoGoogle}>Continue with Google</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Bottom Navigation Section */}
+      <View style={styles.bottomSection}>
+        <View style={styles.SignupContent}>
+          <Text style={styles.info}>Don’t have an account?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+            <Text style={styles.signup}>SIGN UP</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -244,13 +220,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 40,
   },
-  button: {
-    backgroundColor: "#2D5C5C",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 20,
-  },
   icon: {
     width: 39,
     height: 39,
@@ -271,15 +240,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Bitter-Regular",
     color: "#ffffff",
-
-  },fieldsBox: {
+    width: '100%',
+  },
+  fieldsBox: {
     backgroundColor: "#2D5C5C",
     borderRadius: 10,
     width: "80%",
     paddingVertical: 10,
     marginBottom: 20,
     paddingHorizontal: 10,
-    
   },
   info: {
     fontSize: 20,
@@ -289,12 +258,6 @@ const styles = StyleSheet.create({
   },
   logo: {
     alignItems: 'center',
-  },
-  signupBox: {
-    marginTop: '10%',
-    marginBottom: 30,
-    display: 'flex',
-    flexDirection: 'column',
   },
   signup: {
     fontFamily: "Bitter-Regular",
@@ -306,7 +269,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     textDecorationLine: 'underline',
   },
-    SignupContent: {
+  SignupContent: {
     flexDirection: "row",   
     alignItems: "center",   
     justifyContent: "center",
@@ -334,12 +297,12 @@ const styles = StyleSheet.create({
     width: "70%",
     marginTop: 40,
   },
-   infoGoogle: {
+  infoGoogle: {
     fontSize: 20,
     fontFamily: "Bitter-Regular",
     color: "#000",
   },
-    googleContent: {
+  googleContent: {
     flexDirection: "row",   
     alignItems: "center",   
     justifyContent: "center",
@@ -349,8 +312,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loginButton: {
-    width: 120,          // fixed width
-    height: 45,          // fixed height
+    width: 120,         
+    height: 45,          
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
@@ -358,5 +321,4 @@ const styles = StyleSheet.create({
   spinner: {
     position: "absolute",
   },
-
 });

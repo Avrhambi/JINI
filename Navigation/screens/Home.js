@@ -1,18 +1,24 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, FlatList, Alert, NativeModules, NativeEventEmitter } from "react-native";
+import React, { useEffect, useState, useCallback, useContext } from "react";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Modal, Alert, StyleSheet, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { Audio } from "expo-av";
-import * as FileSystem from "expo-file-system";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from "expo-document-picker";
-import { requestAppPermissions } from "../../utils/permissions"; 
-import { formatFileSize } from "../../utils/recordingUtils";
-import Modal from "react-native-modal";
-import { getAudioFileInfo, findMatchInLogs, buildFullMetadata } from "../../utils/RecordManager";
-import { getAccessToken, getUserInfo, removeUserCredentials } from "../../utils/auth";  
+import * as DocumentPicker from 'expo-document-picker';
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
+// Services & Utils
+import { 
+    ensureDirectory,
+    loadLocalRecords,
+    searchRecords, 
+    updateFavoriteStatus, 
+    renameRecord, 
+    deleteRecord, 
+    deleteAccount, 
+    uploadAudioFile } from "../../services/HomeServices";
+import { requestAppPermissions } from "../../utils/permissions";
+import { getUserInfo, removeUserCredentials, getGoogleLoginStatus } from "../../utils/auth";
+import { AuthContext } from "../../utils/AuthContext";
 
 export default function HomeScreen() {
     const [KeyWord, setKeyWord] = useState("");
@@ -22,884 +28,396 @@ export default function HomeScreen() {
     const [currentTab, setCurrentTab] = useState("all");
     const [records, setRecords] = useState([]);
     const [allRecords, setAllRecords] = useState([]);
-    const [refreshing, setRefreshing] = useState(false);
-    const [userName, setUserName] = React.useState('Guest');
-    const [isRenameModalVisible, setRenameModalVisible] = React.useState(false);
-    const [selectedRecord, setSelectedRecord] = React.useState(null);
-    const [newDisplayName, setNewDisplayName] = React.useState("");
-    const [submittedQuery, setSubmittedQuery] = React.useState("");
-
-    // const BASE_URL = 'http://172.18.124.55:8000';
-    const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
-
-
-
-  
+    const [userName, setUserName] = useState('Guest');
+    const [isRenameModalVisible, setRenameModalVisible] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState(null);
+    const [newDisplayName, setNewDisplayName] = useState("");
+    const [submittedQuery, setSubmittedQuery] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [statusMessage, setStatusMessage] = useState("");
     const navigation = useNavigation();
-    const { CallLogModule } = NativeModules; // Ensure this Native Module exists in your android folder
+    const { signOut } = useContext(AuthContext);
 
-    // Path to local audios folder
-    // const audioDir = FileSystem.documentDirectory + "audios/";
-    const audioDir = FileSystem.documentDirectory + "PhoneRecords/";
-    // Ensure folder exists on mount
+    const initRecords = async () => {
+        const data = await loadLocalRecords(setFavorites);
+        setRecords(data);
+        setAllRecords(data);
+    };
+
     useEffect(() => {
-        (async () => {
-        const folderInfo = await FileSystem.getInfoAsync(audioDir);
-        if (!folderInfo.exists) {
-            await FileSystem.makeDirectoryAsync(audioDir, { intermediates: true });
-        }
-        })();
-    }, []);
-
-
-
-    const loadRecords = async () => {
-        console.log("in LoadRecords");
-        try {
-          const [savedNamesStr, savedFavsStr] = await Promise.all([
-            AsyncStorage.getItem('custom_names'),
-            AsyncStorage.getItem('favorite_records')
-          ]);
-
-          const customNames = savedNamesStr ? JSON.parse(savedNamesStr) : {};
-          const localFavorites = savedFavsStr ? JSON.parse(savedFavsStr) : [];
-          
-          // Update the favorites state immediately so UI looks correct while loading
-          setFavorites(localFavorites);
-              const userInfo = await getUserInfo();
-              const token = await getAccessToken(); 
-
-            const [logs, fileNames] = await Promise.all([
-                NativeModules.CallLogModule.getCallLogs(),
-                FileSystem.readDirectoryAsync(audioDir)
-            ]);
-
-            const localMerged = await Promise.all(fileNames.map(async (name) => {
-                if (name.includes('(') || name.includes('copy')) return null;
-                const stats = await getAudioFileInfo(audioDir + name);
-                if (stats.size === 0 || stats.duration === 0) return null;
-                const timestampMatch = name.match(/\d{13}/);
-                const fileTimestamp = timestampMatch ? parseInt(timestampMatch[0]) : null;
-
-                const match = findMatchInLogs(name, fileTimestamp, stats.modificationTime, logs);
-                if (!match) return null;
-
-                const metadata = await buildFullMetadata(match, stats, name);
-
-                return {
-                    ...match,
-                    recording: { name, uri: audioDir + name, ...stats },
-                    metadata: metadata,
-                    isLocal : true,
-                    isFavorite: localFavorites.includes(name)
-                };
-            }));
-
-            const filterLocal = localMerged.filter(Boolean);
-            filterLocal.sort((a, b) => {
-                const dateA = parseInt(a.date);
-                const dateB = parseInt(b.date);
-                return dateB - dateA; // Sort descending
-            });
-            console.log(`Loaded ${filterLocal.length} local records.`);
-            setRecords(filterLocal);
-            setAllRecords(filterLocal);
-            console.log("userinfo", `${userInfo.name}`, `${userInfo.email}`,"token", `${token}`);
-
-            // if (userInfo.id && token){
-                // try {
-                //     const controller = new AbortController();
-                //     const timeoutId = setTimeout(() => controller.abort(), 8000);
-                //     const response = await fetch(`${BASE_URL}/users/${userInfo.id}/loaded-records`, {
-                //         headers: { 'Authorization': `Bearer ${token}` },
-                //         signal: controller.signal
-                //     }); 
-                //     clearTimeout(timeoutId);
-                //     if (response.ok) {
-                //         const {serverRecords, favorite_record_ids} = await response.json();
-                //         setFavorites(favorite_record_ids || []);
-
-                //         if (serverRecords && serverRecords.length > 0) {
-                //             setRecords(prev => {
-                //                 const localNames = new Set(prev.map(r => r.recording.name));
-                //                 const newServerRecords = serverRecords.filter(sr => !localNames.has(sr.filename))
-                //                 .map(sr => ({
-                //                     ...sr.metadata,
-                //                     recording: {
-                //                         name: sr.filename,
-                //                         uri: null,
-                //                         isCloud : true},
-                //                     isLocal: false
-                //                 }));
-                //                 return [...prev, ...newServerRecords].sort((a, b) => {
-                //                     new Date(b.date) - new Date(a.date);
-                //                 });
-                //             });
-                //         }
-                //     }
-                // } catch (error) {
-                //     console.error('Server Error:', error);
-                // }
-            }
-        // } 
-        catch (error) {
-            console.log('Load Error:', error);
-        }
-    };
-
-
-  // AUTOMATED REFRESH: Runs whenever you open the screen
-
-  useFocusEffect(
-  useCallback(() => {
-    const init = async () => {
-      setKeyWord(""); 
-      setSubmittedQuery(""); // Reset search when entering screen
-      const hasPermissions = await requestAppPermissions();
-      if (hasPermissions) {
-        loadRecords();
-      }
-    };
-    init();
-  }, [])
-);
-
-  const search_key_word = async () => {
-    const query = KeyWord.trim();
-    setSubmittedQuery(query);
-    if (!query) {
-      // If search is empty, reload original records
-      setRecords(allRecords);
-      return;
-    }
-
-    setRefreshing(true);
-
-    try {
-        // 1. Get the token for authentication
-        const token = await getAccessToken();
-        console.log("in search_key_word");
-        if (!token) {
-            Alert.alert("Error", "Session expired. Please log in again.");
-            setRecords(allRecords);
-            setKeyWord("");
-            setSubmittedQuery("");
-            setRefreshing(true);
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('query', KeyWord);
-        console.log("Searching for keyword:", KeyWord);
-        const responsePromise = fetch(`${BASE_URL}/calls/search`, {
-            method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${token}`
-            },
-            body: formData
-        });
-
-        const response = await responsePromise;
-        console.log("Response received for search.",response);
-
-        if (!response.ok) {
-            throw new Error("Search failed on server");
-        }
-
-        const searchData = await response.json(); 
-        console.log("Search data received:", searchData);
-        /* Expected searchData format: 
-            [ { "filename": "rec_123.mp3", "timestamps": [12.5, 45.0, 110.2] }, ... ]
-        */
-
-        // Filter our local records state to only show those found by the backend
-        const filteredResults = allRecords.map(record => {
-            const serverMatch = searchData.find(s => s.file_name === record.recording.name);
-            
-            if (serverMatch) {
-            return {
-                ...record,
-                foundTimestamps: serverMatch.time_stamps // Attach timestamps for Listen.js
-            };
-            }
-            return null;
-
-        }).filter(Boolean);
-        console.log(`Search found ${filteredResults[0]}`);
-        if (filteredResults.length === 0) {
-            console.log("No matches found. Check if your record.recording.name matches the server file_name.");
-            Alert.alert("No Results", "No recordings matched your search keyword.");
-            setRecords(allRecords); // Reset to all records
-        }
-        else {
-          setRecords(filteredResults);
-        }
-
-    } catch (error) {
-      console.log("Search error:", error.message);
-      Alert.alert("Search Error", error.message === "Request timed out" 
-        ? "Server took too long" 
-        : "Failed to fetch search results.");
-        setRecords(allRecords); // Reload original records on error
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-
+        ensureDirectory();
+        getUserInfo().then(info => info?.name && setUserName(info.name));
+        requestAppPermissions().then(has => has && initRecords());
+    }, [])
   
-//     const search_key_word = async () => {
-//         if (!KeyWord.trim()) {
-//             loadRecords();
-//             return;
-//         }
 
-//     setRefreshing(true);
-
-//   // --- MOCK BACKEND SIMULATION ---
-//   // Simulate a 1-second delay
-//   await new Promise(resolve => setTimeout(resolve, 1000));
-
-//   // This is exactly what your backend SHOULD return
-//   const mockSearchData = [
-//     {
-//       "filename": records[0]?.recording?.name || "example.mp3", 
-//       "timestamps": [1, 2, 3.1, 6.2, 9.2, 10.5] // Seconds where keyword was found
-//     },
-//     {
-//       "filename": records[1]?.recording?.name || "sample.mp3",
-//       "timestamps": [1.0,2, 5.0, 6.5, 7]
-//     }
-//   ];
-
-//   // Process the results just like the real fetch would
-//   const filteredResults = records.map(record => {
-//     const serverMatch = mockSearchData.find(s => s.filename === record.recording.name);
-    
-//     if (serverMatch) {
-//       return {
-//         ...record,
-//         foundTimestamps: serverMatch.timestamps // This passes to Listen screen
-//       };
-//     }
-//     return null;
-//   }).filter(Boolean);
-
-//   setRecords(filteredResults);
-//   setRefreshing(false);
-  
-//   if (filteredResults.length > 0) {
-//     Alert.alert("Mock Success", `Found keyword at ${filteredResults[0].foundTimestamps.length} positions`);
-//   }
-// };
-  
-const pickAudio = async () => {
-    try {
-        const result = await DocumentPicker.getDocumentAsync({ type: "audio/*", copyToCacheDirectory: true });
-        if (result.canceled) return;
-        const file = result.assets[0];
-
-        // 1. Save Locally
-        const destPath = audioDir + file.name;
-        await FileSystem.copyAsync({ from: file.uri, to: destPath });
-
-        // 2. Get Data via Helpers
-        const stats = await getAudioFileInfo(destPath);
-        const token = await getAccessToken(); 
-        const userInfo = await getUserInfo();
-
-        if (!token) {
-            Alert.alert("Error", "You are not logged in. Please log in again.");
-            return;
-        }
-
-
-        const logs = await NativeModules.CallLogModule.getCallLogs();
-        const timestampMatch = file.name.match(/\d{13}/);
-        const fileTimestamp = timestampMatch ? parseInt(timestampMatch[0]) : null;
-
-        const matchedLog = findMatchInLogs(file.name, fileTimestamp, stats.modificationTime, logs);
-
-        // 3. Prepare Metadata
-        let finalMetadata;
-        if (matchedLog) {
-            finalMetadata = await buildFullMetadata(matchedLog, stats, file.name);
-        } else {
-            // Manual fallback if no log matches
-            finalMetadata = {
-                visibleName: file.name,
-                originalFileName: file.name,
-                caller_name: "Imported",
-                number: "Unknown",
-                type: "Manual",
-                // realDuration: stats.duration,
-                date: new Date().toLocaleString('he-IL'),
-                // uploadedBy: userInfo.email || 'Unknown',
-                // userId: userInfo.id || null,
-                // userDisplayName: userInfo.name || 'Unknown',
-            };
-        }
-
-        // 4. Upload
-
-        const formData = new FormData();
-        formData.append('audio_file', { uri: file.uri, name: file.name, type: file.mimeType || 'audio/wav' });
-        formData.append('original_name', file.name);
-        formData.append('display_name', finalMetadata.visibleName);
-        formData.append('caller_name', finalMetadata.caller_name); 
-        formData.append('number', finalMetadata.number);
-        formData.append('type', finalMetadata.type);
-        formData.append('date', finalMetadata.date || new Date().toISOString());  
-        console.log("Uploading audio:", formData);
-        const response = await fetch(`${BASE_URL}/calls/upload`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`},
-            body: formData,
-        });
-
-        if (response.ok) {
-            const serverData = await response.json();
-            // Save transcription for Listen.js
-            await AsyncStorage.setItem(`transcription_${file.name}`, JSON.stringify(serverData));
-            Alert.alert("Success", "Uploaded and transcribed!");
-            Alert.alert("Success", "Uploaded and transcribed!");
-            loadRecords(); // Refresh UI
-        }
-        else {
-            const errorData = await response.json();
-            Alert.alert("Upload Error", errorData.detail || "Upload failed. Please try again.");
-        }
-    } catch (err) {
-        console.error("pickAudio Error:", err);
-        Alert.alert("Error", "Import failed");
-    }
-};
- 
-  const toggleFavorite =  async (recordName) => {
-    const token = await getAccessToken();
-    const userInfo = await getUserInfo();
-    console.log("Toggling favorite for:", recordName);
-    if (!token) {
-        Alert.alert("Error", "Session expired. Please log in again.");
-        return;
-    }
-    const isFavorite = favorites.includes(recordName);
-    const endpoint = isFavorite ? 'remove' : 'add';
-    const formData = new FormData();
-    formData.append('original_name', recordName);
-    try {
-        const response = await fetch(`${BASE_URL}/calls/favorites/${endpoint}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`}, 
-            body: formData,
-        });
-        if (response.ok) {
-          const updatedFavorites = isFavorite 
-            ? favorites.filter((fid) => fid !== recordName) 
-            : [...favorites, recordName];
-
-          setFavorites(updatedFavorites);
-          await AsyncStorage.setItem(`favorite_records`, JSON.stringify(updatedFavorites));
-            
-        } else {
-            const errorData = await response.json();
-            Alert.alert("Error", errorData.detail || "Could not update favorites.");
-            console.error("Favorite Error:", errorData);
-        }
-    } catch (error) {
-        Alert.alert("Error", "Network error. Please try again.");
-    }
-};
-
-  const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
-  React.useEffect(() => {
-  const getUserName = async () => {
-    try {
-      const userInfo = await getUserInfo();
-      if (userInfo.name) setUserName(userInfo.name);
-    } catch (e) {
-      console.log("Failed to load user name");
-    }
-  };
-
-  getUserName();
-}, []);
-
-// const handleLogout = async () => {
-//   try {
-//     setMenuVisible(false);
-    
-//     // Clear tokens and the name
-//     await AsyncStorage.multiRemove(['user_name', 'access_token', 'refresh_token']);
-
-//     navigation.reset({
-//       index: 0,
-//       routes: [{ name: 'Login' }],
-//     });
-//   } catch (error) {
-//     console.error("Logout error:", error);
-//   }
-// };
-
-
-const handleLogout = async () => {
-  try {
-    setMenuVisible(false);
-    
-    // Wipe everything (Tokens AND User Info) via the helper
-    await removeUserCredentials();
-
-    // Clear any lingering non-secure items if you still use them
-    await AsyncStorage.removeItem('user_name');
-
-    // Redirect to Login and prevent going back
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
-
-    console.log("User logged out successfully.");
-  } catch (error) {
-    console.error("Logout error:", error);
-    Alert.alert("Error", "Could not log out properly. Please try again.");
-  }
-};
-
-const handleDeleteAccount = async () => {
-
-  Alert.alert(
-    "Delete Account",
-    "Are you sure? This will permanently delete all your records and account data.",
-    [
-      { text: "Cancel", style: "cancel" },
-      { 
-        text: "Delete", 
-        style: "destructive", 
-        onPress: async () => {
-          try {
-            console.log("Deleting account...");
-            const token = await getAccessToken();
-            const response = await fetch(`${BASE_URL}/users/delete`, {
-              method: 'DELETE',
-              headers: { 
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json' 
-              },
-            });
-
-            if (response.ok) {
-                setRecords([]); // Clear records from UI
-                setAllRecords([]);
-                setFavorites([]);
-                console.log("Account deleted successfully.");
-                // Cleanup local storage
-                await Promise.all([
-                  removeUserCredentials(),
-                  AsyncStorage.removeItem('favorite_records'),
-                  AsyncStorage.removeItem('custom_names'),
-                  AsyncStorage.removeItem('user_name')
-                ]);
-
-                setMenuVisible(false);
-                
-                // Reset navigation to Signup
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Login' }],
-                });
-            } else {
-              Alert.alert("Error", "Could not delete account. Please try again.");
-            }
-          } catch (error) {
-            console.error(error);
+    useFocusEffect(
+      useCallback(() => {
+        const refreshData = async () => {
+          const data = await loadLocalRecords(setFavorites);
+          setAllRecords(data);
+          if (submittedQuery === "") {
+              setRecords(data);
           }
-        }
-      }
-    ]
-  );
-};
+        };
+        refreshData();
+      }, [submittedQuery]) 
+    );
 
-// RENAME RECORD
-const renameRecord = async (recordName, newName) => {
-  console.log("Renaming record:", recordName, "to", newName);
-  try {
-    const token = await getAccessToken();
-    const userInfo = await getUserInfo();
-    if (!token) {
-      Alert.alert("Error", "Session expired. Please log in again.");
-      return;
-    }
-    const formData = new FormData();
-    formData.append('original_name', recordName);
-    formData.append('new_name', newName);
-    const response = await fetch(`${BASE_URL}/calls/rename`, {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
-
-    if (response.ok) {
-      // Update UI locally without reloading everything
-      setRecords(prev => prev.map(r => 
-        r.recording.name === recordName ? { ...r, metadata: { ...r.metadata, visibleName: newName } } : r
-      ));
-      const savedNames = await AsyncStorage.getItem('custom_names');
-      const namesObj = savedNames ? JSON.parse(savedNames) : {};
-      namesObj[recordName] = newName; // Mapping: "audio_123.mp3" -> "Mom's Call"
-      await AsyncStorage.setItem('custom_names', JSON.stringify(namesObj));
-    }
-  } catch (error) {
-    Alert.alert("Error", "Could not rename record.");
-  }
-};
-
-// DELETE RECORD
-const deleteRecord = async (record) => {
-    const recordName = record.recording.name;
-    const userInfo = await getUserInfo();
-    const token = await getAccessToken();
-    if (!token) {
-        Alert.alert("Error", "Session expired. Please log in again.");
+    // Search Handler
+    const handleSearch = async () => {
+      if (!KeyWord.trim()) {
+        setRecords(allRecords);
+        setSubmittedQuery(KeyWord);
         return;
-    }
+      }
 
-    Alert.alert("Delete", "Are you sure you want to delete this recording?", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: async () => {
-        try {
-          console.log("Deleting record:", recordName);
-          const formData = new FormData();
-          formData.append('original_name', recordName);
-            // 1. Delete from Database
-          const response = await fetch(`${BASE_URL}/calls/delete`,
-          {
-            method: 'DELETE',
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-            },
-            body: formData
-          });
-          
-          if (response.ok) {
-            // 2. Delete from App Storage (FileSystem)
-            await FileSystem.deleteAsync(record.recording.uri);
-            const savedNames = await AsyncStorage.getItem('custom_names');
-            if (savedNames) {
-                let namesObj = JSON.parse(savedNames);
-                delete namesObj[recordName]; // Remove the entry for this file
-                await AsyncStorage.setItem('custom_names', JSON.stringify(namesObj));
-            }
-            
-            // 3. Update UI
-            setRecords(prev => prev.filter(r => r.recording.name !== record.recording.name));
+      setStatusMessage("Searching records...");
+      setIsLoading(true);
+      
+      try {
+        const results = await searchRecords(KeyWord, allRecords);
+        setRecords(results.length > 0 ? results : allRecords);
+        setSubmittedQuery(KeyWord);
+      } catch (error) {
+        Alert.alert("Error", error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Delete Record Handler
+    const handleDelete = (record) => {
+        Alert.alert("Delete", "Are you sure?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: async () => {
+            const success = await deleteRecord(record);
+            if (success) {                
+                setRecords(prev => prev.filter(r => r.recording.name !== record.recording.name));
+            }        
+        }   
+        }
+        ]);
+    };
+
+    // Logout Handler
+    const handleLogout = async () => {
+      setMenuVisible(false);
+      await signOut();      
+    };
+
+    // Rename Handler
+    const handleRename = async () => {
+      const success = await renameRecord(selectedRecord.recording.name, newDisplayName);
+      if (success) {
+        setRecords(prev => prev.map(r => 
+        r.recording.name === selectedRecord.recording.name 
+        ? { ...r, metadata: { ...r.metadata, visibleName: newDisplayName } } : r
+        ));
+        setRenameModalVisible(false);
+      }
+    };
+
+    // Delete Account Handler
+    const handleDeleteAccount = () => {
+        Alert.alert(
+        "Delete Account",
+        "Are you sure? This will permanently delete all your records and account data.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Delete", 
+                style: "destructive", onPress: async () => { 
+                  const success = await deleteAccount();
+                  if (success) {
+                      setRecords([]); // Clear records from UI
+                      setAllRecords([]);
+                      setFavorites([]);
+                      setMenuVisible(false);
+                      await signOut();
+                  } else {
+                  Alert.alert("Error", "Account deletion failed.");
+                  }
+                }
+              }
+            ]
+        );
+    };
+
+    // Expand/Collapse Handler
+    const toggleExpand = (id) => {
+        setExpandedId(prev => (prev === id ? null : id));
+    };
+
+    // Favorite Toggle Handler
+    const toggleFavorite = async (recordName) => {
+      const updatedFavorites = await updateFavoriteStatus(recordName, favorites.includes(recordName), favorites);
+      setFavorites(updatedFavorites);
+    };
+
+    // Audio Picker and Upload Handler
+    const handlePickAudio = async () => {
+      // 1. Open the UI Picker
+      const result = await DocumentPicker.getDocumentAsync({ 
+      type: "audio/*", 
+      copyToCacheDirectory: true 
+      });
+
+      if (result.type === "cancel") return;
+      const file = result.assets[0];
+      setStatusMessage("Uploading and transcribing record...");
+      setIsLoading(true);
+      try {
+        // 2. Call the service to handle processing and upload
+        const success = await uploadAudioFile(file);
+
+        if (success) {
+          Alert.alert("Success", "Uploaded and transcribed!");
+          initRecords(); // Refresh the list from local storage
           }
         } catch (error) {
-          Alert.alert("Error", "Deletion failed.");
+          Alert.alert("Upload Error", error.message);
         }
-    }}
-  ]);
-};
-
-const openRenameModal = (record) => {
-  setSelectedRecord(record);
-  setNewDisplayName(record.metadata.visibleName); // Pre-fill with current name
-  setRenameModalVisible(true);
-};
-
-
-  return (
-    <LinearGradient
-      colors={["#E1E6E7", "#ADC3C7", "#424242"]}
-      locations={[0.25, 0.63, 1]}
-      style={styles.container}
-    >
-      <View style={styles.topSection}>
-        {/* Header */}
-        <View style={styles.menu}>
-          <View style={styles.logo}>
-            <Text style={styles.title}>JINI</Text>
-            <Image
-              source={require("../../assets/genie-512.png")}
-              style={styles.icon}
-              resizeMode="center"
-            />
-          </View>
-          <TouchableOpacity style={styles.menuButton} onPress={() => setMenuVisible(true)}>
-            <Ionicons name="menu" size={35} color="black" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Search */}
-        <View style={styles.SearchBar}>
-          <TextInput 
-            style={styles.searchInput} 
-            placeholder="Search" 
-            placeholderTextColor="#ffffff" 
-            value={KeyWord} 
-            onChangeText={setKeyWord}
-            onSubmitEditing={search_key_word} // Trigger search on "Enter"
-            returnKeyType="search"
-          />
-          <TouchableOpacity onPress={search_key_word}>
-            <Image
-              source={require("../../assets/magnifying-glass.png")}
-              style={styles.searchIcon}
-              resizeMode="center"
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Action Bar (Manual Import) */}
-        <View style={{flexDirection: 'row', justifyContent: 'space-between', width: '80%', alignItems: 'center'}}>
-            <Text style={styles.headLine}>My Records</Text>
-            <TouchableOpacity onPress={pickAudio} style={{padding: 5}}>
-                <Ionicons name="add-circle-outline" size={30} color="#2D5C5C" />
-            </TouchableOpacity>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabs}>
-          <TouchableOpacity 
-            style={[styles.tabButton, currentTab === "all" && styles.activeTab]} 
-            onPress={() => setCurrentTab("all")}
-          >
-            <Text style={[styles.tabText, currentTab === "all" && styles.activeTabText]}>All</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tabButton, currentTab === "favorites" && styles.activeTab]} 
-            onPress={() => setCurrentTab("favorites")}
-          >
-            <Text style={[styles.tabText, currentTab === "favorites" && styles.activeTabText]}>Favorites</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* List */}
-        <FlatList
-          data={records.filter(r => {
-            // const matchesSearch = r.metadata?.name?.toLowerCase().includes(KeyWord.toLowerCase()) ||
-            //                       r.metadata?.number?.includes(KeyWord) || (r.foundTimestamps && r.foundTimestamps.length > 0);
-            if (!submittedQuery) return currentTab === "all" || (currentTab === "favorites" && favorites.includes(r.recording?.name));
-            const matchesSearch = (r.foundTimestamps && r.foundTimestamps.length > 0);
-            const matchesTab = currentTab === "all" || 
-                              (currentTab === "favorites" && favorites.includes(r.recording?.name));
-            return matchesTab && matchesSearch;
-          })}
-          extraData={records}
-          keyExtractor={(item) => `${item.date}-${item.recording.name}`}
-          contentContainerStyle={{ paddingBottom: 40, width: "100%" }}
-          ListEmptyComponent={
-          <Text style={{textAlign: 'center', marginTop: 20, color: '#555'}}>
-              No records found with attached audio.
-          </Text>
-          }
-        //   renderItem={({ item }) => (
-        //     <TouchableOpacity onPress={() => navigation.navigate('Listen', { record: item })}>
-        //       <View style={styles.SearchResultItem}>
-        //         <TouchableOpacity onPress={() => toggleExpand(item.recording?.name)}>
-        //           <Ionicons 
-        //             name={expandedId === item.recording?.name ? "chevron-down" : "chevron-forward"} 
-        //             size={25} 
-        //             color="white"
-        //           />
-        //         </TouchableOpacity>
-        //         <View style={{ flex: 1, marginLeft: 10 }}>
-        //           <Text style={styles.Results}>{item.metadata?.name || 'Unknown'}</Text>
-        //           <Text style={styles.ResultsInfo}>
-        //             {item.metadata?.type} • {item.metadata?.duration}s • 🎤
-        //           </Text>
-        //         </View>
-        //         <TouchableOpacity onPress={() => toggleFavorite(item.recording?.name)}>
-        //           <Ionicons 
-        //             name={favorites.includes(item.recording?.name) ? "star" : "star-outline"} 
-        //             size={25} 
-        //             color="white"
-        //           />
-        //         </TouchableOpacity>
-        //       </View>
-              
-        //       {expandedId === item.recording?.name && (
-        //         <View style={styles.expandedResult}>
-        //           <Text style={styles.expandedResultsInfo}>Phone: {item.metadata?.number}</Text>
-        //           <Text style={styles.expandedResultsInfo}>Date: {item.metadata?.date}</Text>
-        //           <Text style={styles.expandedResultsInfo}>File: {item.recording.name}</Text>
-        //           <Text style={styles.expandedResultsInfo}>
-        //             Size: {formatFileSize ? formatFileSize(item.recording.size) : item.recording.size}
-        //           </Text>
-        //         </View>
-        //       )}
-        //     </TouchableOpacity>
-        //   )}
-        renderItem={({ item }) => {
-    // Helper to convert seconds to MM:SS
-    const formatDuration = (totalSeconds) => {
-        if (!totalSeconds || isNaN(totalSeconds)) return "00:00";
-
-        const hrs = Math.floor(totalSeconds / 3600);
-        const mins = Math.floor((totalSeconds % 3600) / 60);
-        const secs = Math.floor(totalSeconds % 60);
-
-        const pad = (num) => (num < 10 ? `0${num}` : num);
-
-        if (hrs > 0) {
-            return `${hrs}:${pad(mins)}:${pad(secs)}`;
+        finally {
+          setIsLoading(false);
         }
-        return `${pad(mins)}:${pad(secs)}`;
     };
-
-    const getCallIcon = (type) => {
-      switch (type) {
-          case 'Incoming':
-              return { name: "arrow-back-circle-outline", color: "#3498db"  }; 
-          case 'Outgoing':
-              return { name: "arrow-forward-circle-outline", color: "#2ecc71" };
-          default:
-              return { name: "call-outline", color: "white" };
-      }
-    };
-    const callIcon = getCallIcon(item.metadata?.type);
-    return (
-        <TouchableOpacity onPress={() => navigation.navigate('Listen', { record: item })}>
-        <View style={styles.SearchResultItem}>
-            <TouchableOpacity onPress={() => toggleExpand(item.recording?.name)}>
-            <Ionicons 
-                name={expandedId === item.recording?.name ? "chevron-down" : "chevron-forward"} 
-                size={25} 
-                color="white"
-            />
-            </TouchableOpacity>
-
-            <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={[styles.Results, {textAlign: 'left'}]}>{item.metadata?.caller_name || 'Unknown'}</Text>
-            <Text style={styles.ResultsInfo}>
-                {/* Using the new Hebrew Date and Time strings */}
-                {/* {item.metadata?.displayDate} • {item.metadata?.displayTime} • */}
-                 {formatDuration(item.metadata?.realDuration)}
-            </Text>
-            </View>
-
-            <TouchableOpacity onPress={() => toggleFavorite(item.recording?.name)}>
-            <Ionicons 
-                name={favorites.includes(item.recording?.name) ? "star" : "star-outline"} 
-                size={25} 
-                color="white"
-            />
-            </TouchableOpacity>
-        </View>
         
-          {expandedId === item.recording?.name && (
-            <View style={styles.expandedResult}>
-              <Text style={styles.expandedResultsInfo}>Phone: {item.metadata?.number}</Text>
-              <Text style={styles.expandedResultsInfo}>Date: {item.metadata?.date}</Text>
-              <View style={{ flexDirection: 'row',}}>
-                <Text style={[styles.expandedResultsInfo,]}>Type: {item.metadata?.type } 
-                </Text>
-                <Ionicons name={callIcon.name} size={22} color={callIcon.color} style={{ marginLeft: 5 }} />
-              </View>
-              <Text style={styles.expandedResultsInfo}>Name: {item.metadata.visibleName}</Text>
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.renameActionButton} 
-                    onPress={() => openRenameModal(item)}
-                >
-                  <Ionicons name="pencil-outline" size={20} color="white" />
-                  <Text style={styles.actionLabel}>Rename</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.deleteActionButton}
-                  onPress={() => deleteRecord(item)}
-                >
-                  <Ionicons name="trash-outline" size={20} color="white" />
-                  <Text style={styles.actionLabel}>Delete</Text>
-                </TouchableOpacity>
-              </View>
+    // Rename Modal Opener
+    const openRenameModal = (record) => {
+        setSelectedRecord(record);
+        setNewDisplayName(record.metadata?.visibleName || "");
+        setRenameModalVisible(true);
+    }
+
+    return (
+        <LinearGradient colors={["#E1E6E7", "#ADC3C7", "#424242"]} locations={[0.25, 0.63, 1]} style={styles.container}>
+          <View style={styles.topSection}>
+            {/* Header */}
+            <View style={styles.menu}>
+            <View style={styles.logo}>
+                <Text style={styles.title}>JINI</Text>
+                <Image source={require("../../assets/genie-512.png")} style={styles.icon} resizeMode="center" />
             </View>
-        )}
-        </TouchableOpacity>
-    );
-            }}
-        />
-      </View>
-      <Modal
-        visible={isMenuVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.menuModal} 
-          activeOpacity={1} 
-          onPress={() => setMenuVisible(false)}
-        >
-          <View style={styles.sideMenu}>
-            {/* User Info Section */}
-            <View style={styles.userInfoSection}>
-              <Ionicons name="person-circle-outline" size={60} color="#2D5C5C" />
-              <Text style={styles.userName}>{userName}</Text> 
+            <TouchableOpacity style={styles.menuButton} onPress={() => setMenuVisible(true)}>
+                <Ionicons name="menu" size={35} color="black" />
+            </TouchableOpacity>
             </View>
 
-            <View style={styles.menuDivider} />
-
-            {/* Logout Button */}
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={handleLogout}
-            >
-              <Ionicons name="log-out-outline" size={25} color="#e74c3c" />
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-            {/* Delete Account Button */}
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={handleDeleteAccount}
-            >
-              <Ionicons name="trash-outline" size={25} color="#e74c3c" />
-              <Text style={styles.logoutText}>Delete Account</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-      <Modal
-        visible={isRenameModalVisible}
-        transparent={true}
-        animationType="fade"
-      >
-        <View style={styles.editModal}>
-          <View style={styles.renameContainer}>
-            <Text style={styles.modalTitle}>Rename Record</Text>
-            <TextInput
-              style={styles.renameInput}
-              value={newDisplayName}
-              onChangeText={setNewDisplayName}
-              placeholder="Enter new name"
-              placeholderTextColor="#aaa"
-              autoFocus={true}
+            {/* Search */}
+            {/* <View style={styles.SearchBar}>
+            <TextInput 
+                style={styles.searchInput} 
+                placeholder="Search" 
+                placeholderTextColor="#ffffff" 
+                value={KeyWord} 
+                onChangeText={setKeyWord}
+                onSubmitEditing={handleSearch}
             />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelBtn]} 
-                onPress={() => setRenameModalVisible(false)}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.saveBtn]} 
-                onPress={() => {
-                  renameRecord(selectedRecord.recording.name, newDisplayName);
-                  setRenameModalVisible(false);
+            <TouchableOpacity onPress={handleSearch}>
+                <Image source={require("../../assets/magnifying-glass.png")} style={styles.searchIcon} resizeMode="center" />
+            </TouchableOpacity>
+            </View> */}
+            <View style={styles.SearchBar}>
+              <TextInput 
+                style={styles.searchInput} 
+                placeholder="Search" 
+                placeholderTextColor="#ffffff" 
+                value={KeyWord} 
+                onChangeText={(text) => {
+                  setKeyWord(text);
+                  if (text === "") {
+                    setSubmittedQuery(""); 
+                    setRecords(allRecords);
+                  }
                 }}
-              >
-                <Text style={styles.buttonText}>Save</Text>
+                onSubmitEditing={handleSearch}
+              />
+              <TouchableOpacity onPress={handleSearch}>
+                <Image 
+                  source={require("../../assets/magnifying-glass.png")} 
+                  style={styles.searchIcon} 
+                  resizeMode="center" 
+                />
               </TouchableOpacity>
             </View>
-          </View>
+
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', width: '80%', alignItems: 'center'}}>
+              <Text style={styles.headLine}>My Records</Text>
+              <TouchableOpacity onPress={handlePickAudio} style={{padding: 5}}>
+                  <Ionicons name="add-circle-outline" size={30} color="#2D5C5C" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.tabs}>
+            <TouchableOpacity 
+                style={[styles.tabButton, currentTab === "all" && styles.activeTab]} 
+                onPress={() => setCurrentTab("all")}
+            >
+                <Text style={[styles.tabText, currentTab === "all" && styles.activeTabText]}>All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+                style={[styles.tabButton, currentTab === "favorites" && styles.activeTab]} 
+                onPress={() => setCurrentTab("favorites")}
+            >
+                <Text style={[styles.tabText, currentTab === "favorites" && styles.activeTabText]}>Favorites</Text>
+            </TouchableOpacity>
+            </View>
+            {/* FlatList with RenderItem (item icons, favorite toggle, expanded view)  */}
+            <FlatList
+            data={records.filter(r => {
+                // const matchesSearch = r.metadata?.name?.toLowerCase().includes(KeyWord.toLowerCase()) ||
+                //                       r.metadata?.number?.includes(KeyWord) || (r.foundTimestamps && r.foundTimestamps.length > 0);
+                if (!submittedQuery) return currentTab === "all" || (currentTab === "favorites" && favorites.includes(r.recording?.name));
+                const matchesSearch = (r.foundTimestamps && r.foundTimestamps.length > 0);
+                const matchesTab = currentTab === "all" || 
+                                (currentTab === "favorites" && favorites.includes(r.recording?.name));
+                return matchesTab && matchesSearch;
+            })}
+            extraData={records}
+            keyExtractor={(item) => `${item.date}-${item.recording.name}`}
+            contentContainerStyle={{ paddingBottom: 40, width: "100%" }}
+            ListEmptyComponent={
+                <Text style={{textAlign: 'center', marginTop: 20, color: '#555'}}>
+                    No records found with attached audio.
+                </Text>
+            }
+            renderItem={({ item }) => {
+                const formatDuration = (totalSeconds) => {
+                    if (!totalSeconds || isNaN(totalSeconds)) return "00:00";
+
+                    const hrs = Math.floor(totalSeconds / 3600);
+                    const mins = Math.floor((totalSeconds % 3600) / 60);
+                    const secs = Math.floor(totalSeconds % 60);
+
+                    const pad = (num) => (num < 10 ? `0${num}` : num);
+
+                    if (hrs > 0) {
+                        return `${hrs}:${pad(mins)}:${pad(secs)}`;
+                    }
+                    return `${pad(mins)}:${pad(secs)}`;
+                };
+
+                const getCallIcon = (type) => {
+                switch (type) {
+                    case 'Incoming':
+                        return { name: "arrow-back-circle-outline", color: "#3498db"  }; 
+                    case 'Outgoing':
+                        return { name: "arrow-forward-circle-outline", color: "#2ecc71" };
+                    default:
+                        return { name: "call-outline", color: "white" };
+                }
+                };
+                const callIcon = getCallIcon(item.metadata?.type);
+                return (
+                    <TouchableOpacity onPress={() => navigation.navigate('Listen', { record: item })}>
+                    <View style={styles.SearchResultItem}>
+                        <TouchableOpacity onPress={() => toggleExpand(item.recording?.name)}>
+                        <Ionicons 
+                            name={expandedId === item.recording?.name ? "chevron-down" : "chevron-forward"} 
+                            size={25} 
+                            color="white"
+                        />
+                        </TouchableOpacity>
+
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={[styles.Results, {textAlign: 'left'}]}>{item.metadata?.caller_name || 'Unknown'}</Text>
+                        <Text style={styles.ResultsInfo}>
+                            {/* Using the new Hebrew Date and Time strings */}
+                            {formatDuration(item.metadata?.realDuration)}
+                        </Text>
+                        </View>
+
+                        <TouchableOpacity onPress={() => toggleFavorite(item.recording?.name)}>
+                        <Ionicons 
+                            name={favorites.includes(item.recording?.name) ? "star" : "star-outline"} 
+                            size={25} 
+                            color="white"
+                        />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    {expandedId === item.recording?.name && (
+                        <View style={styles.expandedResult}>
+                        <Text style={styles.expandedResultsInfo}>Phone: {item.metadata?.number}</Text>
+                        <Text style={styles.expandedResultsInfo}>Date: {item.metadata?.date}</Text>
+                        <View style={{ flexDirection: 'row',}}>
+                            <Text style={[styles.expandedResultsInfo,]}>Type: {item.metadata?.type } 
+                            </Text>
+                            <Ionicons name={callIcon.name} size={22} color={callIcon.color} style={{ marginLeft: 5 }} />
+                        </View>
+                        <Text style={styles.expandedResultsInfo}>Name: {item.metadata.visibleName}</Text>
+                        <View style={styles.actionRow}>
+                            <TouchableOpacity style={styles.renameActionButton} 
+                                onPress={() => openRenameModal(item)}
+                            >
+                            <Ionicons name="pencil-outline" size={20} color="white" />
+                            <Text style={styles.actionLabel}>Rename</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                            style={styles.deleteActionButton}
+                            onPress={() => handleDelete(item)}
+                            >
+                            <Ionicons name="trash-outline" size={20} color="white" />
+                            <Text style={styles.actionLabel}>Delete</Text>
+                            </TouchableOpacity>
+                        </View>
+                        </View>
+                    )}
+                    </TouchableOpacity>
+                );
+            }}
+            />
+            {/* Tabs */}
+
         </View>
-      </Modal>
-    </LinearGradient>
-  );
+
+        {/* Side Menu Modal */}
+        <Modal visible={isMenuVisible} transparent animationType="fade">
+            <TouchableOpacity style={styles.menuModal} onPress={() => setMenuVisible(false)}>
+            <View style={styles.sideMenu}>
+                <View style={styles.userInfoSection}>
+                <Ionicons name="person-circle-outline" size={60} color="#2D5C5C" />
+                <Text style={styles.userName}>{userName}</Text>
+                </View>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={25} color="#e74c3c" />
+                <Text style={styles.logoutText}>Logout</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount}>
+                    <Ionicons name="trash-outline" size={25} color="#e74c3c" />
+                    <Text style={styles.logoutText}>Delete Account</Text>
+                </TouchableOpacity>
+            </View>
+            </TouchableOpacity>
+        </Modal>
+        {/* Rename Modal */}
+        <Modal visible={isRenameModalVisible} transparent animationType="fade">
+            <View style={styles.editModal}>
+            <View style={styles.renameContainer}>
+                <Text style={styles.modalTitle}>Rename Record</Text>
+                <TextInput style={styles.renameInput} value={newDisplayName} onChangeText={setNewDisplayName} autoFocus />
+                <View style={styles.modalButtons}>
+                <TouchableOpacity onPress={() => setRenameModalVisible(false)} style={[styles.modalButton, styles.cancelBtn]}>
+                    <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleRename} style={[styles.modalButton, styles.saveBtn]}>
+                    <Text style={styles.buttonText}>Save</Text>
+                </TouchableOpacity>
+                </View>
+            </View>
+            </View>
+        </Modal>
+        {/* Loading Modal */}
+        <Modal transparent animationType="fade" visible={isLoading} statusBarTranslucent={true}>
+          <View style={styles.overlay}>
+            <View style={styles.modalContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.message}>{statusMessage}</Text>
+            </View>
+          </View>
+        </Modal>
+      </LinearGradient>
+    );
 }
 
 const styles = StyleSheet.create({
@@ -971,16 +489,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 20,
   },
-  // expandedResult: {
-  //   backgroundColor: "#6C9E9E",
-  //   padding: 15,
-  //   width: "90%",
-  //   borderRadius: 20,
-  //   alignSelf: "center",
-  //   marginTop: -25, // Overlap effect
-  //   marginBottom: 15,
-  //   zIndex: -1
-  // },
   Results: {
     fontSize: 16,
     fontFamily: "Bitter-Regular",
@@ -1026,12 +534,6 @@ const styles = StyleSheet.create({
     width: "80%",
     marginBottom: 20,
   },
-  // buttonText: {
-  //   position: "absolute",
-  //   right: 20,
-  //   top: "50%",
-  //   transform: [{ translateY: -17 }],
-  // },
   menu: {
     flexDirection: "row",
     alignItems: "center",
@@ -1052,7 +554,7 @@ const styles = StyleSheet.create({
   },
   sideMenu: {
     width: '65%',
-    height: '50%',
+    height: '45%',
     backgroundColor: 'white',
     padding: 20,
     paddingTop: 60,
@@ -1098,16 +600,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     zIndex: -1
   },
-    // expandedResult: {
-  //   backgroundColor: "#6C9E9E",
-  //   padding: 15,
-  //   width: "90%",
-  //   borderRadius: 20,
-  //   alignSelf: "center",
-  //   marginTop: -25, // Overlap effect
-  //   marginBottom: 15,
-  //   zIndex: -1
-  // },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -1177,4 +669,33 @@ const styles = StyleSheet.create({
   cancelBtn: { backgroundColor: '#95a5a6' },
   saveBtn: { backgroundColor: '#2D5C5C' },
   buttonText: { color: 'white', fontWeight: 'bold' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Dims the background
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '80%',
+    maxWidth: 280,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    // Elevation for Android
+    elevation: 10,
+  },
+  message: {
+    marginTop: 20,
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 22,
+  },
 });

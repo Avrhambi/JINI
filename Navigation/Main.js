@@ -1,5 +1,4 @@
-import React from "react";
-import { StyleSheet, Text, View, Image, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, Image, TouchableOpacity } from "react-native";
 import { LinearGradient} from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 
@@ -19,7 +18,8 @@ export default function MainScreen() {
             style={styles.icon}
             resizeMode="center" // ensures it scales properly
         />
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Login')}>
+        <TouchableOpacity style={styles.button} onPress={() =>
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }]}) }>
             <Text style={styles.buttonText}>GET STARTED</Text>
         </TouchableOpacity>
     </LinearGradient>

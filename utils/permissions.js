@@ -42,12 +42,6 @@ export const requestAppPermissions = async () => {
       ? granted[PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO] === PermissionsAndroid.RESULTS.GRANTED
       : granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
 
-    console.log('Permissions Status:', { 
-      CallLog: callLogGranted, 
-      Phone: phoneGranted, 
-      Storage: storageGranted 
-    });
-
     // Return true only if the core permissions (Log & Phone) are granted
     return callLogGranted && phoneGranted;
 
