@@ -20,7 +20,7 @@ I18nManager.allowRTL(false);
 I18nManager.forceRTL(false);
 
 GoogleSignin.configure({
-  webClientId: '56386705598-coagpg2nsd2ql4gqhq47c6vgn2sc9uu9.apps.googleusercontent.com',
+  webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
   offlineAccess: true,
 });
 
