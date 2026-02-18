@@ -8,16 +8,16 @@ from services.call import (
     upload_call_to_search_service
 )
 
-def upload_call_controller(user_id: str, file, metadata):
-    transcript = upload_call_to_search_service(user_id, file, metadata)
+async def upload_call_controller(user_id: str, file, metadata):
+    transcript = await upload_call_to_search_service(user_id, file, metadata)
     if transcript is None:
         raise HTTPException(status_code=500, detail="Transcription service failed")
     return {"message": "Upload success", "transcript": transcript}
 
 
-def search_call_controller(user_id: str, query: str):
-    return search_calls_service(user_id, query)
-
+async def search_call_controller(user_id: str, query: str):
+    return await search_calls_service(user_id, query)
+ 
 
 def delete_call_controller(user_id: str, original_name: str):
     if not delete_call_service(user_id, original_name):
@@ -34,13 +34,13 @@ def rename_call_controller(user_id: str, original_name: str, new_name: str):
 
 def add_favorite_controller(user_id: str, original_name: str):
     if not toggle_favorite_service(user_id, original_name, action="add"):
-        raise HTTPException(status_code=404, detail="Record not found")
-    return {"message": "Added to favorites"}
+        raise HTTPException(status_code=404, detail="Could not add to favorites")
+    return {"message": "Action completed successfully"}
 
 
 def remove_favorite_controller(user_id: str, original_name: str):
     if not toggle_favorite_service(user_id, original_name, action="remove"):
-        raise HTTPException(status_code=404, detail="Record not found")
+        raise HTTPException(status_code=404, detail="Could not remove from favorites")
     return {"message": "Removed from favorites"}
 
 

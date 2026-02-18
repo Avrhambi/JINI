@@ -6,7 +6,6 @@
 #every __pycache__ 
 **/__pycache__
 
-*.wav
 
 
 backups
@@ -18,6 +17,8 @@ current
 *test*
 
 local
+
+local_tests
 
 /.pytest_cache/
 

@@ -21,7 +21,7 @@ def google_login(request: GoogleLoginRequest):
     return auth_google_login(request.id_token)
 
 
-@auth_router.post("/refresh")
+@auth_router.put("/refresh")
 def refresh_token(
     refresh_token: str = Form(...)
 ):

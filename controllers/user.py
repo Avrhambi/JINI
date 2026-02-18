@@ -8,7 +8,7 @@ def delete_user_controller(user_id: str):
     success = delete_user_service(user_id)
     if not success:
         raise HTTPException(status_code=404, detail="User not found or already deleted")
-    return {"status": "success", "message": "User account and all records deleted"}
+    return {"message": "User deleted Successfully"}
 
 
 def edit_user_profile_controller(user_id: str, updated_data: UserUpdate):
@@ -28,8 +28,6 @@ def edit_user_profile_controller(user_id: str, updated_data: UserUpdate):
         raise HTTPException(status_code=404, detail="User not found")
     
     return {
-        "status": "success",
-        "message": "Profile updated successfully",
-        "updated_fields": list(update_dict.keys())
+        "message": "Profile updated successfully"
     }
 

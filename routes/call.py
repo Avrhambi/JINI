@@ -9,9 +9,6 @@ from controllers.call import (
     upload_call_controller, 
     search_call_controller
 )
-from models.call import CallRecord
-from typing import List
-import json
 
 
 
@@ -38,18 +35,16 @@ async def upload_callrecord(
         "date": date,
         "file_path": f"/audio/{audio_file.filename}"
     }
-    print(metadata)
-    return upload_call_controller(current_user.id, audio_file, metadata)
+    return await upload_call_controller(current_user.id, audio_file, metadata)
 
 
 
 @call_router.post("/search")
-def search(
+async def search(
     query: str = Form(...),
     current_user: dict = Depends(verify_token)
 ):
-    return search_call_controller(current_user.id, query)
-
+    return await search_call_controller(current_user.id, query)
 
 
 @call_router.delete("/delete")
@@ -61,7 +56,7 @@ def delete_callrecord(
     return delete_call_controller(current_user.id, original_name)
 
 
-@call_router.post("/rename")
+@call_router.put("/rename")
 def rename_callrecord(
     original_name: str = Form(...), 
     new_name: str = Form(...), 
@@ -70,7 +65,7 @@ def rename_callrecord(
     return rename_call_controller(current_user.id, original_name, new_name)
 
 
-@call_router.post("/favorites/add")
+@call_router.put("/favorites/add")
 def add_favorite_call(
     original_name: str = Form(...), 
     current_user: dict = Depends(verify_token)
@@ -78,7 +73,7 @@ def add_favorite_call(
     return add_favorite_controller(current_user.id, original_name)
 
 
-@call_router.post("/favorites/remove")
+@call_router.put("/favorites/remove")
 def remove_favorite_call(
     original_name: str = Form(...), 
     current_user: dict = Depends(verify_token)
@@ -86,6 +81,6 @@ def remove_favorite_call(
     return remove_favorite_controller(current_user.id, original_name)
 
 
-@call_router.get("/favorites", response_model=List[CallRecord])
+@call_router.get("/favorites")
 def get_favorites_calls(current_user: dict = Depends(verify_token)):
     return get_favorites_controller(current_user.id)

@@ -1,14 +1,13 @@
 from fastapi import HTTPException
+from pyparsing import Optional
 from models.auth import SignupRequest
 from services.user import create_user_service, get_user_by_email
 from utils.auth_utils import *
 from pymongo.errors import DuplicateKeyError
 from models.auth import LoginRequest
-from google.oauth2 import id_token
-from google.auth.transport import requests
 from fastapi import HTTPException
 from models.user import User
-import config.db as db 
+
 
 GOOGLE_CLIENT_ID = SECRET_KEY = os.getenv("GOOGLE_CLIENT_ID")
 
@@ -85,17 +84,18 @@ def auth_google_login(token: str):
         else:
             # New user 
             user_data = {
-                    "name": f"{google_user_info['given_name']} {google_user_info['family_name']}",
+                    "username": None,  # Optional
+                    "first_name": google_user_info["given_name"],
+                    "last_name": google_user_info["family_name"],
                     "email": google_user_info["email"],
                     "password": None,  # No password for Google users
-                    "username": None   # Optional
                 }
-            
+
+
             new_user = create_user_service(user_data)
             return generate_auth_response(new_user)
             
     except ValueError as e:
-        # Invalid token
         raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
     except DuplicateKeyError:
         raise HTTPException(status_code=400, detail="Email already registered")

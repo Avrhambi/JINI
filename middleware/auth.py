@@ -19,7 +19,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user = get_user_by_id(payload["user_id"])
-    print(user)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
@@ -30,12 +29,12 @@ def auth_refresh_token(refresh_token: str):
     try:
         payload = verify_refresh_token(refresh_token)
         user_id = payload["user_id"]
-        
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
+            raise HTTPException(status_code=401, detail="User ID not found in refresh token")
         
         new_access_token = create_access_token({"user_id": user_id})
         return {"access_token": new_access_token, "token_type": "bearer"}
+    
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.InvalidTokenError:

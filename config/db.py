@@ -15,7 +15,13 @@ calls_collection = None
 
 def init_db():
     global client, db, users_collection, calls_collection
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    client = MongoClient(
+        MONGO_URI, 
+        serverSelectionTimeoutMS=5000,
+        minPoolSize=10,
+        maxPoolSize=50,
+        connect=True
+    )
     db = client["JINI"]
 
     # collections

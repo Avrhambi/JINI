@@ -6,13 +6,14 @@ class SearchResult(BaseModel):
     file_name: str
     time_stamps: List[float]
 
+
 class CallRecord(BaseModel):
     call_id: str = Field(alias="_id")
     user_id: str
     original_name: str
-    visibile_name: str  # Custom spelling as requested
+    visibile_name: str 
     number: str
-    type: str           # Custom spelling as requested
+    type: str          
     caller: str
     date: str
     file_path: str

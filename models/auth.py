@@ -8,12 +8,11 @@ class SignupRequest(BaseModel):
     last_name: Optional[str] = None
     email: str
     password: Optional[str] = None  # optional for Google account
-    # google_id: Optional[str] = None  # for Google login
+
 
 class LoginRequest(BaseModel):
     email: str
     password: str  # optional for Google account
-
 
 
 class GoogleLoginRequest(BaseModel):

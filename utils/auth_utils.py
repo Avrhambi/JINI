@@ -9,8 +9,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") #sets password
 SECRET_KEY = os.getenv("SECRET_KEY") 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
-ALGORITHM = "HS256"
-
+ALGORITHM = os.getenv("ALGORITHM")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 
@@ -39,21 +38,21 @@ def create_refresh_token(data: dict):
 
 def verify_access_token(token: str):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"]) #extract the saved info in the token 
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # extract the saved info in the token 
         return payload
-    except jwt.ExpiredSignatureError: #expiration time passed
+    except jwt.ExpiredSignatureError: # expiration time passed
         return None
-    except jwt.InvalidTokenError: #invalid token
+    except jwt.InvalidTokenError: # invalid token
         return None
     
 
 def verify_refresh_token(token: str):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"]) #extract the saved info in the token 
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # extract the saved info in the token 
         return payload
-    except jwt.ExpiredSignatureError: #expiration time passed
+    except jwt.ExpiredSignatureError: # expiration time passed
         return None
-    except jwt.InvalidTokenError: #invalid token
+    except jwt.InvalidTokenError: # invalid token
         return None
 
 
