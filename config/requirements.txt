@@ -1,19 +1,10 @@
 # --- Core Frameworks & Servers ---
 fastapi==0.111.1
 uvicorn[standard]==0.23.2
-
-# --- Database ---
+pydantic==2.11.1
+bcrypt==3.2.2
 pymongo==4.4.1
-
-# --- Security & Authentication ---
 passlib[bcrypt]==1.7.4
 bcrypt==3.2.2
 PyJWT==2.8.0
-google-auth==2.47.0
-google-api-python-client==2.187.0
-requests==2.32.5
-
-# --- Utilities & Data Validation ---
-pydantic[email]==2.11.1
 python-dotenv==1.0.0
-python-multipart==0.0.20
