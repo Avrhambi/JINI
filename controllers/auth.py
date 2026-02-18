@@ -20,7 +20,7 @@ def generate_auth_response(user: User) -> dict:
     """
     access_token = create_access_token({"user_id": user.id})
     refresh_token = create_refresh_token({"user_id": user.id})
-    
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -79,17 +79,18 @@ def auth_google_login(token: str):
         
         # Check if user exists by email
         user = get_user_by_email(google_user_info["email"])
-        
+  
         if user:
             # Existing user 
             return generate_auth_response(user)
         else:
             # New user 
             user_data = {
-                    "name": f"{google_user_info['given_name']} {google_user_info['family_name']}",
+                    "first_name": google_user_info['given_name'],
+                    "last_name": google_user_info['family_name'],
                     "email": google_user_info["email"],
                     "password": None,  # No password for Google users
-                    "username": None   # Optional
+                    "username": google_user_info["email"].split("@")[0]
                 }
             
             new_user = create_user_service(user_data)

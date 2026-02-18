@@ -229,8 +229,6 @@ def get_user_favorites_service(user_id: str):
     
     for call in calls:
         call["_id"] = str(call["_id"])
-        call.pop("user_id", None)
-        call.pop("call_id", None)
     return calls
 
 
