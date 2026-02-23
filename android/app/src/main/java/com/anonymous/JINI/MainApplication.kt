@@ -24,9 +24,7 @@ class MainApplication : Application(), ReactApplication {
         object : DefaultReactNativeHost(this) {
           override fun getPackages(): List<ReactPackage> {
             val packages = PackageList(this).packages.toMutableList() // make it mutable
-            packages.add(ShizukuPackage())
             packages.add(CallLogPackage())
-            packages.add(CallPackage())
             return packages
           }
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"

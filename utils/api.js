@@ -28,7 +28,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     formdata.append('refresh_token', refreshToken);
     // Request new access token
     const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
+      method: 'PUT',
       headers: { 'Content-Type': 'multipart/form-data' },
       body: formdata,
     });

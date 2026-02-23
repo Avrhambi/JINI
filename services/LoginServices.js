@@ -105,9 +105,15 @@ export const performLogin = async (email, password) => {
       }
     };
   } catch (error) {
-    let msg = error.message === "Request timed out" 
-      ? "Server took too long to respond." 
-      : "Failed to process login data.";
+    let msg;
+    if (error.message === "Request timed out") {
+      msg = "Request timed out"; 
+    } else if (error.message === "No response from server") {
+      msg = "No response from server"; 
+    } else {
+      msg = "Failed to process login data.";
+    }
+    
     return { success: false, error: msg };
   }
 };

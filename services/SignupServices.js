@@ -7,24 +7,29 @@ const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
  * @returns {string|null} Error message if invalid, null if valid
  */
 export const validateSignupForm = (fields) => {
-  const { UserName, Email, Password, ConfirmPassword, FirstName, LastName } = fields;
+  const { UserName, Email, Password, ConfirmPassword, FirstName, LastName } = fields;  
   
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-
-  if (!UserName || !Email || !Password || !ConfirmPassword || !FirstName || !LastName) {
-    return 'All fields are required.';
-  }
   if (!emailRegex.test(Email)) {
     return 'Please enter a valid email address.';
   }
-  if (!passwordRegex.test(Password)) {
+
+  const hasUpper = /[A-Z]/.test(Password);
+  const hasLower = /[a-z]/.test(Password);
+  const hasNumber = /\d/.test(Password);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>_]/.test(Password);
+  const hasLength = Password.length >= 8;
+
+  if (!hasUpper || !hasLower || !hasNumber || !hasSpecial || !hasLength) {
     return 'Password does not match requirements.';
   }
   if (Password !== ConfirmPassword) {
     return 'Passwords do not match.';
   }
-  
+
+  if (!UserName || !Email || !Password || !ConfirmPassword || !FirstName || !LastName) {
+    return 'All fields are required.';
+  }
   return null;
 };
 

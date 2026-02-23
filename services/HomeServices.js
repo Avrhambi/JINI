@@ -52,7 +52,7 @@ export const loadLocalRecords = async (setFavorites) => {
     }));
 
     return localMerged.filter(Boolean).sort((a, b) => parseInt(b.date) - parseInt(a.date));
-  } catch (error) {
+  } catch (error) { 
     throw new Error("Failed to load local records");
   }
 };
@@ -90,7 +90,7 @@ export const updateFavoriteStatus = async (recordName, isFavorite, favorites) =>
     formData.append('original_name', recordName);
 
     const response = await apiFetch(`/calls/favorites/${endpoint}`, {
-      method: 'POST',
+      method: 'PUT',
       body: formData,
     });
 
@@ -117,7 +117,7 @@ export const renameRecord = async (recordName, newName) => {
     formData.append('new_name', newName);
 
     const response = await apiFetch(`/calls/rename`, {
-      method: 'POST',
+      method: 'PUT',
       body: formData
     });
 
