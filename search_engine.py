@@ -186,7 +186,6 @@ class SearchEngine:
                     all_matches.extend(sublist)
         
         final_results = self._deduplicate_sentences(all_matches)
-        final_results = sorted(final_results, key=lambda x: x["score"], reverse=True)
         final_results = sorted(final_results, key=lambda x: x["start"])
         return final_results
 
