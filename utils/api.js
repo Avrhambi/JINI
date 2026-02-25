@@ -2,13 +2,6 @@ import { getAccessToken, getRefreshToken, saveTokens, removeTokens } from './aut
 
 const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
-const isFormDataLike = (body) => {
-  if (!body || typeof body !== 'object') return false;
-  if (typeof FormData !== 'undefined' && body instanceof FormData) return true;
-  if (Array.isArray(body?._parts)) return true;
-  return typeof body.append === 'function' && typeof body.getParts === 'function';
-};
-
 // Generic fetch wrapper
 export const apiFetch = async (endpoint, options = {}) => {
   let accessToken = await getAccessToken();
@@ -17,7 +10,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     Authorization: `Bearer ${accessToken}`
   };
 
-  if (!isFormDataLike(options.body)) {
+  if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
   options.headers = headers;
