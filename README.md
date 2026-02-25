@@ -12,7 +12,7 @@ A Python-based system for transcribing Hebrew audio, generating semantic embeddi
   - **Exact keyword matching** (regex)
 - Retrieve sentences with scores, timing, and reasoning
 - User data isolation (multi-tenant)
-- Deterministic LLM-based re-ranking (Google Gemini)
+- Deterministic LLM-based re-ranking (Using Google Gemini)
 
 
 ## 🏗️ Architecture & Main Files
@@ -23,9 +23,7 @@ A Python-based system for transcribing Hebrew audio, generating semantic embeddi
 - **requirements.txt**: Python dependencies.
 - **manage.bat**: Windows batch script for venv setup and server management.
 - **tests/**: Pytest-based unit tests with full mocking (no real API/DB calls).
-- **Hierarchy of Evidence**: Root supremacy, component/instance matching, physical consequences
-- **Morphological Analysis**: Hebrew linguistic understanding
-- **Deterministic Scoring**: 0.0 or 7.5-10.0 based on evidence rules
+
 
 
 ## 🗂️ File Structure
