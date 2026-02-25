@@ -50,10 +50,7 @@ search_engine/
 - Google Gemini API keys (see `env.example`)
 - (Optional) CUDA GPU for faster Whisper/embedding
 
-Install dependencies:
-```
-pip install -r requirements.txt
-```
+
 
 
 ## 🚀 Quickstart
