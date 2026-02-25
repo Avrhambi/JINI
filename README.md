@@ -6,7 +6,7 @@ A Python-based system for transcribing Hebrew audio, generating semantic embeddi
 
 ## 🎯 Features
 
-- Upload and transcribe Hebrew audio (MP3, WAV, M4A) using Faster-Whisper
+- Upload and transcribe Hebrew audio using Faster-Whisper
 - Search transcripts with:
   - **Semantic search** (vector-based, multilingual-e5)
   - **Exact keyword matching** (regex)
