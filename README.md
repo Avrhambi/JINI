@@ -84,7 +84,7 @@ This command will:
 #### Step 5: Configure Environment Variables
 
 Rename the .env.example file to .env  
-and init assign the veraibles values
+and assign values to the veraibles 
 
 ### Running the Application
 
