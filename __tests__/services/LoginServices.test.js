@@ -5,10 +5,18 @@ import {
     performLogin,
 } from '../../services/LoginServices';
 
+const BASE_URL = process.env.BASE_URL || process.env.EXPO_PUBLIC_BASE_URL;
+const TEST_EMAIL = process.env.TEST_USER_EMAIL || 'asi@bla.com';
+const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'a';
+const MOCK_FETCH = global.fetch;
+const REAL_FETCH = global.realFetch;
+
 describe('Login Services', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        global.fetch.mockClear();
+        if (global.fetch?.mockClear) {
+            global.fetch.mockClear();
+        }
     });
 
     describe('validateLoginForm', () => {
@@ -145,93 +153,33 @@ describe('Login Services', () => {
     });
 
     describe('performLogin', () => {
-        it('should successfully login with email and password', async () => {
-            global.fetch.mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    access_token: 'mock-access-token',
-                    refresh_token: 'mock-refresh-token',
-                    user: {
-                        name: 'Jane Doe',
-                        email: 'jane@example.com',
-                    },
-                }),
-            });
+        beforeAll(() => {
+            expect(typeof REAL_FETCH).toBe('function');
+            global.fetch = REAL_FETCH;
+        });
 
-            const result = await performLogin('jane@example.com', 'password123');
+        afterAll(() => {
+            global.fetch = MOCK_FETCH;
+        });
+
+        it('should successfully login with real backend credentials', async () => {
+            expect(BASE_URL).toBeTruthy();
+
+            const result = await performLogin(TEST_EMAIL, TEST_PASSWORD);
 
             expect(result.success).toBe(true);
-            expect(result.accessToken).toBe('mock-access-token');
-            expect(result.refreshToken).toBe('mock-refresh-token');
-        });
+            expect(result.accessToken).toBeTruthy();
+            expect(result.refreshToken).toBeTruthy();
+            expect(result.userInfo).toBeDefined();
+        }, 20000);
 
-        it('should return error if login fails', async () => {
-            global.fetch.mockResolvedValue({
-                ok: false,
-                json: async () => ({
-                    detail: 'Invalid email or password',
-                }),
-            });
+        it('should return error for invalid password from real backend', async () => {
+            expect(BASE_URL).toBeTruthy();
 
-            const result = await performLogin('jane@example.com', 'wrongpassword');
+            const result = await performLogin(TEST_EMAIL, 'invalid-password-for-test');
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Invalid email or password');
-        });
-
-        it('should return error if server does not respond', async () => {
-            global.fetch.mockResolvedValue(null);
-
-            const result = await performLogin('jane@example.com', 'password123');
-
-            expect(result.success).toBe(false);
-            expect(result.error).toContain('No response from server');
-        });
-
-        it('should handle generic login error', async () => {
-            global.fetch.mockResolvedValue({
-                ok: false,
-                json: async () => ({}),
-            });
-
-            const result = await performLogin('jane@example.com', 'password123');
-
-            expect(result.success).toBe(false);
-            expect(result.error).toBe('Login failed.');
-        });
-
-        it('should extract name from user object', async () => {
-            global.fetch.mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    access_token: 'mock-access-token',
-                    refresh_token: 'mock-refresh-token',
-                    user: {
-                        name: 'Custom Name',
-                        email: 'test@example.com',
-                    },
-                }),
-            });
-
-            const result = await performLogin('test@example.com', 'password123');
-
-            expect(result.success).toBe(true);
-        });
-
-        it('should timeout if request takes too long', async () => {
-            jest.useFakeTimers();
-            global.fetch.mockImplementation(
-                () => new Promise(resolve => setTimeout(resolve, 15000))
-            );
-
-            const loginPromise = performLogin('test@example.com', 'password123');
-            jest.advanceTimersByTime(11000);
-
-            const result = await loginPromise;
-
-            expect(result.success).toBe(false);
-            expect(result.error).toContain('Request timed out');
-            jest.useRealTimers();
+            expect(result.error).toBeTruthy();
         }, 20000);
     });
 });

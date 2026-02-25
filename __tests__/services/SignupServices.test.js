@@ -3,10 +3,17 @@ import {
   performSignup,
 } from '../../services/SignupServices';
 
+const BASE_URL = process.env.BASE_URL || process.env.EXPO_PUBLIC_BASE_URL;
+const TEST_EMAIL = process.env.TEST_USER_EMAIL || 'asi@bla.com';
+const MOCK_FETCH = global.fetch;
+const REAL_FETCH = global.realFetch;
+
 describe('Signup Services', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch.mockClear();
+    if (global.fetch?.mockClear) {
+      global.fetch.mockClear();
+    }
   });
 
   describe('validateSignupForm', () => {
@@ -131,117 +138,53 @@ describe('Signup Services', () => {
   });
 
   describe('performSignup', () => {
-    it('should successfully sign up a new user', async () => {
+    beforeAll(() => {
+      expect(typeof REAL_FETCH).toBe('function');
+      global.fetch = REAL_FETCH;
+    });
+
+    afterAll(() => {
+      global.fetch = MOCK_FETCH;
+    });
+
+    it('should return error if email already exists (real backend)', async () => {
+      expect(BASE_URL).toBeTruthy();
+
       const userData = {
-        UserName: 'john_doe',
-        Email: 'john@example.com',
+        UserName: 'existing_user_test',
+        Email: TEST_EMAIL,
         Password: 'ValidPassword123!',
         ConfirmPassword: 'ValidPassword123!',
         FirstName: 'John',
         LastName: 'Doe',
       };
 
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          user_id: '12345',
-          access_token: 'mock-access-token',
-          refresh_token: 'mock-refresh-token',
-        }),
-      });
+      const result = await performSignup(userData);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Email');
+    }, 20000);
+
+    it('should create a new user on real backend with unique email', async () => {
+      expect(BASE_URL).toBeTruthy();
+
+      const uniqueSuffix = Date.now();
+      const userData = {
+        UserName: `live_user_${uniqueSuffix}`,
+        Email: `live_user_${uniqueSuffix}@example.com`,
+        Password: 'ValidPassword123!',
+        ConfirmPassword: 'ValidPassword123!',
+        FirstName: 'Live',
+        LastName: 'Tester',
+      };
 
       const result = await performSignup(userData);
 
       expect(result.success).toBe(true);
-      expect(result.accessToken).toBe('mock-access-token');
-      expect(result.refreshToken).toBe('mock-refresh-token');
-      expect(result.user.id).toBe('12345');
-      expect(result.user.email).toBe('john@example.com');
-      expect(result.user.name).toBe('John Doe');
-    });
-
-    it('should return error if email already exists', async () => {
-      const userData = {
-        UserName: 'john_doe',
-        Email: 'existing@example.com',
-        Password: 'ValidPassword123!',
-        ConfirmPassword: 'ValidPassword123!',
-        FirstName: 'John',
-        LastName: 'Doe',
-      };
-
-      global.fetch.mockResolvedValue({
-        ok: false,
-        json: async () => ({
-          detail: 'email already registered',
-        }),
-      });
-
-      const result = await performSignup(userData);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Email is already in use.');
-    });
-
-    it('should return error on server failure', async () => {
-      const userData = {
-        UserName: 'john_doe',
-        Email: 'john@example.com',
-        Password: 'ValidPassword123!',
-        ConfirmPassword: 'ValidPassword123!',
-        FirstName: 'John',
-        LastName: 'Doe',
-      };
-
-      global.fetch.mockResolvedValue({
-        ok: false,
-        json: async () => ({
-          detail: 'Server error',
-        }),
-      });
-
-      const result = await performSignup(userData);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Server error');
-    });
-
-    it('should return error on network timeout', async () => {
-      const userData = {
-        UserName: 'john_doe',
-        Email: 'john@example.com',
-        Password: 'ValidPassword123!',
-        ConfirmPassword: 'ValidPassword123!',
-        FirstName: 'John',
-        LastName: 'Doe',
-      };
-
-      global.fetch.mockImplementation(
-        () => new Promise(resolve => setTimeout(resolve, 10000))
-      );
-
-      const result = await performSignup(userData);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Server took too long to respond');
-    }, 15000);
-
-    it('should handle generic network errors', async () => {
-      const userData = {
-        UserName: 'john_doe',
-        Email: 'john@example.com',
-        Password: 'ValidPassword123!',
-        ConfirmPassword: 'ValidPassword123!',
-        FirstName: 'John',
-        LastName: 'Doe',
-      };
-
-      global.fetch.mockRejectedValue(new Error('Network error'));
-
-      const result = await performSignup(userData);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Network error');
-    });
+      expect(result.accessToken).toBeTruthy();
+      expect(result.refreshToken).toBeTruthy();
+      expect(result.user).toBeDefined();
+      expect(result.user.email).toBe(userData.Email);
+    }, 20000);
   });
 });

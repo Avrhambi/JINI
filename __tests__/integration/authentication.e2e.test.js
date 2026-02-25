@@ -7,6 +7,11 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 jest.mock('@react-native-google-signin/google-signin');
 jest.mock('../../utils/auth');
 
+const BASE_URL = process.env.BASE_URL || process.env.EXPO_PUBLIC_BASE_URL;
+const REAL_FETCH = global.realFetch;
+const TEST_EMAIL = process.env.TEST_USER_EMAIL || 'asi@bla.com';
+const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'a';
+
 describe('Authentication Flow End-to-End Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -204,19 +209,20 @@ describe('Authentication Flow End-to-End Tests', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-        global.fetch.mockRejectedValue(new Error('Network error'));
+      global.fetch.mockRejectedValue(new Error('Network error'));
 
-        const result = await LoginServices.performLogin(
-            'test@example.com',
-            'password123'
-        );
+      const result = await LoginServices.performLogin(
+        'test@example.com',
+        'password123'
+      );
 
-        expect(result.success).toBe(false);
-        // Fixed to match the actual service output
-        expect(result.error).toContain('Failed to process login data.'); });
+      expect(result.success).toBe(false);
+      // Fixed to match the actual service output
+      expect(result.error).toContain('Failed to process login data.');
+    });
   });
 
-describe('Token Management Flow', () => {
+  describe('Token Management Flow', () => {
     it('should handle token refresh correctly', async () => {
       authUtils.getAccessToken.mockResolvedValue('expired-token');
       authUtils.getRefreshToken.mockResolvedValue('refresh-token');
@@ -236,12 +242,12 @@ describe('Token Management Flow', () => {
         });
 
       // 1. Initial Call
-      const response = await fetch('http://api.test/endpoint');
-      
+      const response = await fetch(`${BASE_URL}/endpoint`);
+
       // 2. Logic Check: If 401, trigger refresh manually in test 
       // (Mirroring what your interceptor would do)
       if (response.status === 401) {
-        const refreshRes = await fetch('http://api.test/auth/refresh');
+        const refreshRes = await fetch(`${BASE_URL}/auth/refresh`);
         const data = await refreshRes.json();
         await authUtils.saveTokens(data.access_token, 'refresh-token');
       }
@@ -263,10 +269,10 @@ describe('Token Management Flow', () => {
         json: async () => ({}),
       });
 
-      const response = await fetch('http://api.test/endpoint');
+      const response = await fetch(`${BASE_URL}/endpoint`);
 
       if (response.status === 401) {
-        const refreshRes = await fetch('http://api.test/auth/refresh');
+        const refreshRes = await fetch(`${BASE_URL}/auth/refresh`);
         if (!refreshRes.ok) {
           await authUtils.removeUserCredentials();
         }
@@ -274,6 +280,34 @@ describe('Token Management Flow', () => {
 
       expect(authUtils.removeUserCredentials).toHaveBeenCalled();
     });
+  });
+
+  describe('Live Backend Response', () => {
+    it('should send a real request to backend login endpoint without mocking response', async () => {
+      expect(BASE_URL).toBeTruthy();
+      expect(typeof REAL_FETCH).toBe('function');
+
+      const response = await REAL_FETCH(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: TEST_EMAIL,
+          password: TEST_PASSWORD,
+        }),
+      });
+
+      let responseBody;
+      try {
+        responseBody = await response.json();
+      } catch {
+        responseBody = await response.text();
+      }
+
+      expect(typeof response.status).toBe('number');
+      expect(response.status).toBeGreaterThanOrEqual(200);
+      expect(response.status).toBeLessThan(500);
+      expect(responseBody).toBeDefined();
+    }, 20000);
   });
 });
 

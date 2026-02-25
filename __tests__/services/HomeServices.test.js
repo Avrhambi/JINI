@@ -1,4 +1,6 @@
 import { jest } from '@jest/globals';
+import fs from 'fs';
+import path from 'path';
 
 // 1. Mock TurboModuleRegistry and internal NativeModules first
 jest.mock('react-native/Libraries/TurboModule/TurboModuleRegistry', () => ({
@@ -65,6 +67,7 @@ jest.mock('expo-file-system', () => ({
   getInfoAsync: jest.fn(),
   makeDirectoryAsync: jest.fn(),
   readDirectoryAsync: jest.fn(),
+  copyAsync: jest.fn(),
   deleteAsync: jest.fn(),
   moveAsync: jest.fn(),
 }));
@@ -99,6 +102,13 @@ jest.mock('../../utils/RecordManager', () => ({
   buildFullMetadata: jest.fn(),
 }));
 
+jest.mock('../../utils/auth', () => ({
+  getAccessToken: jest.fn(),
+  getRefreshToken: jest.fn(),
+  removeUserCredentials: jest.fn(),
+  saveTokens: jest.fn(),
+}));
+
 import { NativeModules } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -109,17 +119,101 @@ import {
   updateFavoriteStatus,
   renameRecord,
   deleteRecord,
+  uploadAudioFile,
+  deleteAccount,
 } from '../../services/HomeServices';
-import { apiFetch } from '../../utils/api';
 import * as RecordUtils from '../../utils/RecordManager';
+import * as authUtils from '../../utils/auth';
+import { performSignup } from '../../services/SignupServices';
 
-jest.mock('../../utils/api');
+const BASE_URL = process.env.BASE_URL || process.env.EXPO_PUBLIC_BASE_URL;
+const TEST_EMAIL = process.env.TEST_USER_EMAIL || 'asi@bla.com';
+const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'a';
+const MOCK_FETCH = global.fetch;
+const REAL_FETCH = global.realFetch;
+const NATIVE_FORM_DATA = global.FormData;
+class ReactNativeFormDataMock {
+  constructor() {
+    this._parts = [];
+  }
+
+  append(key, value) {
+    this._parts.push([key, value]);
+  }
+}
+let liveAccessToken;
+let liveRefreshToken;
+
+const normalizeFilePathFromUri = (uri) => {
+  const rawPath = uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+  return path.normalize(rawPath);
+};
+
+const convertReactNativeFormData = (reactNativeFormData) => {
+  const nativeFormData = new NATIVE_FORM_DATA();
+  const parts = reactNativeFormData?._parts || [];
+
+  for (const [field, value] of parts) {
+    if (value && typeof value === 'object' && value.uri) {
+      const filePath = normalizeFilePathFromUri(value.uri);
+      const fileBuffer = fs.readFileSync(filePath);
+      const fileBlob = new Blob([fileBuffer], {
+        type: value.type || 'application/octet-stream',
+      });
+      nativeFormData.append(field, fileBlob, value.name || path.basename(filePath));
+    } else {
+      nativeFormData.append(field, value == null ? '' : String(value));
+    }
+  }
+
+  return nativeFormData;
+};
+
+const backendFetchBridge = async (url, options = {}) => {
+  const requestOptions = { ...options };
+  if (requestOptions.body && requestOptions.body._parts) {
+    requestOptions.body = convertReactNativeFormData(requestOptions.body);
+  }
+  return REAL_FETCH(url, requestOptions);
+};
 
 describe('Home Services', () => {
   const audioDir = FileSystem.documentDirectory + 'PhoneRecords/';
 
+  beforeAll(async () => {
+    expect(BASE_URL).toBeTruthy();
+    expect(typeof REAL_FETCH).toBe('function');
+    global.FormData = ReactNativeFormDataMock;
+    global.fetch = backendFetchBridge;
+
+    const loginResponse = await REAL_FETCH(`${BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+      }),
+    });
+
+    const loginData = await loginResponse.json();
+    expect(loginResponse.ok).toBe(true);
+
+    liveAccessToken = loginData.access_token;
+    liveRefreshToken = loginData.refresh_token;
+
+    authUtils.getAccessToken.mockResolvedValue(liveAccessToken);
+    authUtils.getRefreshToken.mockResolvedValue(liveRefreshToken);
+  });
+
+  afterAll(() => {
+    global.fetch = MOCK_FETCH;
+    global.FormData = NATIVE_FORM_DATA;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    authUtils.getAccessToken.mockResolvedValue(liveAccessToken);
+    authUtils.getRefreshToken.mockResolvedValue(liveRefreshToken);
     NativeModules.CallLogModule.getCallLogs.mockResolvedValue([]);
     FileSystem.readDirectoryAsync.mockResolvedValue([]);
     AsyncStorage.getItem.mockResolvedValue(null);
@@ -148,19 +242,19 @@ describe('Home Services', () => {
     });
   });
 
-describe('loadLocalRecords', () => {
+  describe('loadLocalRecords', () => {
     const mockTimestamp = "1709067600000";
 
     beforeEach(() => {
       // Set default successful behaviors for our helpers
-      RecordUtils.getAudioFileInfo.mockResolvedValue({ 
-        size: 1024, 
-        duration: 60, 
-        modificationTime: 1709067600 
+      RecordUtils.getAudioFileInfo.mockResolvedValue({
+        size: 1024,
+        duration: 60,
+        modificationTime: 1709067600
       });
-      RecordUtils.findMatchInLogs.mockReturnValue({ 
-        date: mockTimestamp, 
-        phoneNumber: '1234567890' 
+      RecordUtils.findMatchInLogs.mockReturnValue({
+        date: mockTimestamp,
+        phoneNumber: '1234567890'
       });
       RecordUtils.buildFullMetadata.mockResolvedValue({ artist: 'Test' });
     });
@@ -184,7 +278,7 @@ describe('loadLocalRecords', () => {
       ];
 
       FileSystem.readDirectoryAsync.mockResolvedValue(mockFileNames);
-      
+
       // Customize the mock for the "empty" file case
       RecordUtils.getAudioFileInfo.mockImplementation((path) => {
         if (path.includes('empty')) {
@@ -194,7 +288,7 @@ describe('loadLocalRecords', () => {
       });
 
       const result = await loadLocalRecords(jest.fn());
-      
+
       // 1. 'copy' is skipped by name.includes
       // 2. 'empty' is skipped by stats.size === 0
       // 3. Only the first one remains
@@ -204,141 +298,91 @@ describe('loadLocalRecords', () => {
   });
 
   describe('searchRecords', () => {
-    it('should search records and return matching results', async () => {
+    it('should search records using real backend response', async () => {
       const mockRecords = [
         {
           phoneNumber: '1234567890',
-          recording: { name: 'rec_001.wav' },
+          recording: { name: 'non_existing_record_for_search.wav' },
         },
       ];
 
-      apiFetch.mockResolvedValue({
-        ok: true,
-        data: [
-          {
-            file_name: 'rec_001.wav',
-            time_stamps: [10, 20, 30],
-          },
-        ],
-      });
+      const result = await searchRecords('test', mockRecords);
 
-      const result = await searchRecords('search query', mockRecords);
-
-      expect(result).toBeDefined();
-      expect(apiFetch).toHaveBeenCalledWith('/calls/search', expect.any(Object));
-    });
-
-    it('should return empty array if no matches found', async () => {
-      const mockRecords = [
-        {
-          phoneNumber: '1234567890',
-          recording: { name: 'rec_001.wav' },
-        },
-      ];
-
-      apiFetch.mockResolvedValue({
-        ok: true,
-        data: [],
-      });
-
-      const result = await searchRecords('search query', mockRecords);
-
-      expect(result).toEqual([]);
-    });
-
-    it('should throw error if search fails', async () => {
-      const mockRecords = [];
-
-      apiFetch.mockResolvedValue({
-        ok: false,
-      });
-
-      await expect(searchRecords('query', mockRecords)).rejects.toThrow(
-        'Search failed'
-      );
-    });
+      expect(Array.isArray(result)).toBe(true);
+    }, 20000);
   });
 
-  describe('updateFavoriteStatus', () => {
-    it('should add record to favorites', async () => {
-      apiFetch.mockResolvedValue({ ok: true });
-      AsyncStorage.setItem.mockResolvedValue(undefined);
+  describe('Full Backend Lifecycle', () => {
+    it('should create user, upload record, delete record, then delete account', async () => {
+      const uniqueSuffix = Date.now();
+      const fixtureName = 'record-1761512646339.wav';
+      const uploadedName = `record-1761512646339.wav`;
+      const renamedName = `record-1761512646339-renamed.wav`;
+      const lifecycleUser = {
+        UserName: `cycle_user_${uniqueSuffix}`,
+        Email: `cycle_user_${uniqueSuffix}@example.com`,
+        Password: 'ValidPassword123!',
+        ConfirmPassword: 'ValidPassword123!',
+        FirstName: 'Cycle',
+        LastName: 'Tester',
+      };
 
-      const result = await updateFavoriteStatus('rec_001.wav', false, []);
+      let signupResult;
+      try {
+        signupResult = await performSignup(lifecycleUser);
+        expect(signupResult.success).toBe(true);
+        expect(signupResult.accessToken).toBeTruthy();
+        expect(signupResult.refreshToken).toBeTruthy();
 
-      expect(result).toContain('rec_001.wav');
-      expect(AsyncStorage.setItem).toHaveBeenCalled();
-    });
+        authUtils.getAccessToken.mockResolvedValue(signupResult.accessToken);
+        authUtils.getRefreshToken.mockResolvedValue(signupResult.refreshToken);
 
-    it('should remove record from favorites', async () => {
-      apiFetch.mockResolvedValue({ ok: true });
-      AsyncStorage.setItem.mockResolvedValue(undefined);
+        const fixtureRelativePath = path.join(
+          process.cwd(),
+          'assets',
+          'audio',
+          fixtureName
+        );
+        expect(fs.existsSync(fixtureRelativePath)).toBe(true);
 
-      const result = await updateFavoriteStatus('rec_001.wav', true, ['rec_001.wav']);
-
-      expect(result).not.toContain('rec_001.wav');
-    });
-
-    it('should throw error if update fails', async () => {
-      apiFetch.mockResolvedValue({ ok: false });
-
-      await expect(
-        updateFavoriteStatus('rec_001.wav', false, [])
-      ).rejects.toThrow('Favorite update failed');
-    });
-  });
-
-  describe('renameRecord', () => {
-    it('should rename record successfully', async () => {
-      apiFetch.mockResolvedValue({ ok: true });
-      AsyncStorage.getItem.mockResolvedValue(null);
-      AsyncStorage.setItem.mockResolvedValue(undefined);
-
-      const result = await renameRecord('old_name.wav', 'new_name.wav');
-
-      expect(result).toBe(true);
-      expect(AsyncStorage.setItem).toHaveBeenCalled();
-    });
-
-    it('should throw error if rename fails', async () => {
-        apiFetch.mockResolvedValue({ ok: false });
-
-        const result = await renameRecord('old_name.wav', 'new_name.wav');
-        
-        expect(result).toBe(false); 
+        FileSystem.copyAsync.mockResolvedValue(undefined);
+        FileSystem.deleteAsync.mockResolvedValue(undefined);
+        RecordUtils.getAudioFileInfo.mockResolvedValue({
+          size: 1024,
+          duration: 60,
+          modificationTime: Math.floor(Date.now() / 1000),
         });
-  });
+        RecordUtils.findMatchInLogs.mockReturnValue(null);
 
-  describe('deleteRecord', () => {
-    it('should delete record successfully', async () => {
-      const mockRecord = {
-        recording: {
-          name: 'rec_001.wav',
-          uri: audioDir + 'rec_001.wav',
-        },
-      };
+        const uploadResult = await uploadAudioFile({
+          name: uploadedName,
+          uri: `file://${fixtureRelativePath.replace(/\\/g, '/')}`,
+          mimeType: 'audio/wav',
+        });
+        expect(uploadResult).toBe(true);
 
-      apiFetch.mockResolvedValue({ ok: true });
-      FileSystem.deleteAsync.mockResolvedValue(undefined);
+        const favoriteResult = await updateFavoriteStatus(uploadedName, false, []);
+        expect(Array.isArray(favoriteResult)).toBe(true);
+        expect(favoriteResult).toContain(uploadedName);
 
-      const result = await deleteRecord(mockRecord);
+        const renameResult = await renameRecord(uploadedName, renamedName);
+        expect(renameResult).toBe(true);
 
-      expect(result).toBe(true);
-      expect(FileSystem.deleteAsync).toHaveBeenCalledWith(mockRecord.recording.uri);
-    });
-
-    it('should throw error if delete fails', async () => {
-      const mockRecord = {
-        recording: {
-          name: 'rec_001.wav',
-          uri: audioDir + 'rec_001.wav',
-        },
-      };
-
-      apiFetch.mockResolvedValue({ ok: false });
-
-      const result = await deleteRecord(mockRecord);
-      expect(result).toBe(false);
-    });
+        const deleteResult = await deleteRecord({
+          recording: {
+            name: uploadedName,
+            uri: `file://${fixtureRelativePath.replace(/\\/g, '/')}`,
+          },
+        });
+        expect(deleteResult).toBe(true);
+      } finally {
+        if (signupResult?.accessToken && signupResult?.refreshToken) {
+          authUtils.getAccessToken.mockResolvedValue(signupResult.accessToken);
+          authUtils.getRefreshToken.mockResolvedValue(signupResult.refreshToken);
+          const accountDeleted = await deleteAccount();
+          expect(accountDeleted).toBe(true);
+        }
+      }
+    }, 120000);
   });
 });

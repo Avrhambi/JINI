@@ -1,5 +1,9 @@
 // jest.setup.js
 import 'react-native/jest/setup';
+import { config as loadEnv } from 'dotenv';
+
+loadEnv();
+process.env.BASE_URL = process.env.BASE_URL || process.env.EXPO_PUBLIC_BASE_URL;
 
 const mockPlatform = {
   OS: 'android',
@@ -42,12 +46,16 @@ jest.mock('expo-secure-store', () => ({
 }));
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
-    GoogleSignin: {
-        signOut: jest.fn(),
-        configure: jest.fn(),
-        hasPlayServices: jest.fn(),
-        signIn: jest.fn(),
-    },
+  GoogleSignin: {
+    signOut: jest.fn(),
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(),
+    signIn: jest.fn(),
+  },
 }));
+
+if (typeof global.fetch === 'function') {
+  global.realFetch = global.fetch.bind(global);
+}
 
 global.fetch = jest.fn();
