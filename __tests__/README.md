@@ -65,12 +65,10 @@ For more detail and maintenance conventions, see `__tests__/TEST_GUIDE.md`.
 
 ## 🚀 Next Steps
 
-1. **Read TESTING_SUMMARY.md** for complete overview
-2. **Check TEST_GUIDE.md** for detailed instructions
-3. **Run `npm test`** to verify setup
-4. **Review specific test files** based on your needs
-5. **Use npm run test:watch** during development
+1. **Check TEST_GUIDE.md** for detailed instructions
+2. **Run `npm test`** to verify setup
+3. **Review specific test files** based on your needs
+4. **Use npm run test:watch** during development
 
 ---
 
-For detailed information about each test, see [TESTING_SUMMARY.md](./TESTING_SUMMARY.md)
