@@ -60,10 +60,42 @@ pip install -r requirements.txt
 
 1. Copy `env.example` to `.env` and add your Gemini API keys.
 2. Start MongoDB locally or update the URI in `storage.py` for Atlas.
-3. (Windows) Use `manage.bat` or PowerShell `jini` function for setup:
+3. Set Up PowerShell Profile
+
+First, open PowerShell and edit your profile:
+
+```powershell
+notepad $profile
+```
+
+If the file doesn't exist, PowerShell will create it. Add the following function to your profile file and save:
+
+```powershell
+function JINI {
+    param($action)
+
+    if (Test-Path ".\manage.bat") {
+        # Run the batch file logic first
+        cmd /c manage.bat $action
+
+        # Check: If we need activation AND we aren't already in a venv
+        if (($action -eq "init" -or $action -eq "run") -and ($null -eq $env:VIRTUAL_ENV)) {
+            if (Test-Path ".\venv\Scripts\Activate.ps1") {
+                Write-Host "--- Activating Environment ---" -ForegroundColor Cyan
+                . .\venv\Scripts\Activate.ps1
+            }
+        }
+    } else {
+        Write-Host "Error: manage.bat not found." -ForegroundColor Red
+    }
+}
+```
+
+After saving, close PowerShell completely and reopen it to load the new profile.
+4. (Windows) Use `manage.bat` or PowerShell `jini` function for setup:
    - `jini init` — create venv and install requirements
    - `jini run` — start the Flask server
-4. Access the API at `http://localhost:5000`
+5. Access the API at `http://localhost:5000`
 
 
 ## 🔌 API Endpoints
