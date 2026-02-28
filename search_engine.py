@@ -184,11 +184,10 @@ class SearchEngine:
             for sublist in list_of_results:
                 if sublist:
                     all_matches.extend(sublist)
-
-        # deduplicate matches at the sentence level 
+        
         final_results = self._deduplicate_sentences(all_matches)
-        return sorted(final_results, key=lambda x: x["score"], reverse=True)
-
+        final_results = sorted(final_results, key=lambda x: x["start"])
+        return final_results
 
     def search(self, query: str, user_id:str, top_k=5):
         refined = self.refine_query(query)

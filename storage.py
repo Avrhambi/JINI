@@ -158,6 +158,7 @@ class Storage:
             {"_id": {"$in": candidate_ids}, "user_id": user_id},
             {"window_text": 1, 
              "user_id": 1, 
+             "file_id": 1,
              "start": 1, 
              "file_name": 1,
              "sentences": 1} # Projection for optimized retrieval

@@ -6,13 +6,13 @@ A Python-based system for transcribing Hebrew audio, generating semantic embeddi
 
 ## 🎯 Features
 
-- Upload and transcribe Hebrew audio (MP3, WAV, M4A) using Faster-Whisper
+- Upload and transcribe Hebrew audio using Faster-Whisper
 - Search transcripts with:
   - **Semantic search** (vector-based, multilingual-e5)
   - **Exact keyword matching** (regex)
 - Retrieve sentences with scores, timing, and reasoning
 - User data isolation (multi-tenant)
-- Deterministic LLM-based re-ranking (Google Gemini)
+- Deterministic LLM-based re-ranking (Using Google Gemini)
 
 
 ## 🏗️ Architecture & Main Files
@@ -23,9 +23,7 @@ A Python-based system for transcribing Hebrew audio, generating semantic embeddi
 - **requirements.txt**: Python dependencies.
 - **manage.bat**: Windows batch script for venv setup and server management.
 - **tests/**: Pytest-based unit tests with full mocking (no real API/DB calls).
-- **Hierarchy of Evidence**: Root supremacy, component/instance matching, physical consequences
-- **Morphological Analysis**: Hebrew linguistic understanding
-- **Deterministic Scoring**: 0.0 or 7.5-10.0 based on evidence rules
+
 
 
 ## 🗂️ File Structure
@@ -52,20 +50,48 @@ search_engine/
 - Google Gemini API keys (see `env.example`)
 - (Optional) CUDA GPU for faster Whisper/embedding
 
-Install dependencies:
-```
-pip install -r requirements.txt
-```
+
 
 
 ## 🚀 Quickstart
 
 1. Copy `env.example` to `.env` and add your Gemini API keys.
 2. Start MongoDB locally or update the URI in `storage.py` for Atlas.
-3. (Windows) Use `manage.bat` or PowerShell `jini` function for setup:
+3. Set Up PowerShell Profile
+First, open PowerShell and edit your profile:
+
+```powershell
+notepad $profile
+```
+
+If the file doesn't exist, PowerShell will create it. Add the following function to your profile file and save:
+
+```powershell
+function JINI {
+    param($action)
+
+    if (Test-Path ".\manage.bat") {
+        # Run the batch file logic first
+        cmd /c manage.bat $action
+
+        # Check: If we need activation AND we aren't already in a venv
+        if (($action -eq "init" -or $action -eq "run") -and ($null -eq $env:VIRTUAL_ENV)) {
+            if (Test-Path ".\venv\Scripts\Activate.ps1") {
+                Write-Host "--- Activating Environment ---" -ForegroundColor Cyan
+                . .\venv\Scripts\Activate.ps1
+            }
+        }
+    } else {
+        Write-Host "Error: manage.bat not found." -ForegroundColor Red
+    }
+}
+```
+
+After saving, close PowerShell completely and reopen it to load the new profile.
+4. (Windows) Use `manage.bat` or PowerShell `jini` function for setup:
    - `jini init` — create venv and install requirements
    - `jini run` — start the Flask server
-4. Access the API at `http://localhost:5000`
+5. Access the API at `http://localhost:5000`
 
 
 ## 🔌 API Endpoints
@@ -79,30 +105,34 @@ pip install -r requirements.txt
 - **MongoDB**
   - `windows`: Blocks of sentences with embeddings, user/file linkage
   - `files`: File metadata and full transcript
-- **FAISS**: In-memory vector index (384-dim, e5-small)
+- **FAISS**: In-memory vector index 
 
 
 ## 🔍 Search Flow
 
-1. **Query refinement** (LLM): Extracts keywords, roots, and semantic focus
+1. **Query refinement** : Extracts keywords, roots, and semantic focus
 2. **Exact search**: Regex match in MongoDB blocks
-3. **Semantic search**: FAISS vector similarity (e5-small, 384-dim)
-4. **Re-ranking**: Gemini LLM applies deterministic rules, scores, and dedupes
+3. **Semantic search**: FAISS vector similarity
+4. **Re-ranking**: Ai Judger applies deterministic rules, scores, and dedupes
 
 
 ## 📊 Processing Pipeline
 
 ```
-Audio Upload → Transcription → Sentence Reconstruction
+Audio Upload
        ↓
-    Block Creation (6 sentences, step=2)
+Transcription
        ↓
-    Embedding Generation (e5-small)
+Sentence Reconstruction
        ↓
-    Store blocks and embeddings in MongoDB & FAISS
+Blocks Creation 
+       ↓
+Embedding Generation 
+       ↓
+Store Text blocks and their embeddings in MongoDB & FAISS
 ```
 
-All processing is performed locally. No Google Colab or GCS is required.
+All processing is performed locally. 
 
 ---
 
@@ -162,12 +192,10 @@ mongo_uri = "mongodb://localhost:27017"  # or Atlas URI
 Before deploying to production, manually verify:
 
 - [ ] **MongoDB Connection**: `python -c "from storage import Storage; Storage('mongodb://localhost:27017')"`
-- [ ] **Audio Upload**: Upload a test MP3 via `/upload`
+- [ ] **Audio Upload**: Upload a test Wav via `/upload`
 - [ ] **Search**: Run a Hebrew query via `/search?q=test&user_id=user_1`
 - [ ] **User Isolation**: Upload file as user_1, search as user_2 (should see nothing)
 - [ ] **Transcript Retrieval**: Fetch full transcript via `/transcript/<user_id>/<filename>`
-- [ ] **Audio Serving**: Stream audio file via `/audio/<user_id>/<filename>`
-- [ ] **GCS Watcher**: Monitor logs for successful index downloads
 - [ ] **Gemini APIs**: Both query and search LLM endpoints working
 
 ---
