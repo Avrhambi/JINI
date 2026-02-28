@@ -48,12 +48,12 @@ async def search(
 
 
 @call_router.delete("/delete")
-def delete_callrecord(
+async def delete_callrecord(
     original_name: str = Form(...),
     current_user: dict = Depends(verify_token)
 ):
     
-    return delete_call_controller(current_user.id, original_name)
+    return await delete_call_controller(current_user.id, original_name)
 
 
 @call_router.put("/rename")

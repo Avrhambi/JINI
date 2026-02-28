@@ -68,22 +68,49 @@ async def search_calls_service(user_id: str, query: str):
         return []
  
 
-def delete_call_service(user_id: str, original_name: str):
+async def delete_call_service(user_id: str, original_name: str):
     query = {
         "user_id": user_id, 
         "original_name": original_name
     }
 
+    # 1. Fetch record (ensure you handle potential None)
     record = db.calls_collection.find_one(query)
+    if not record:
+        return False
+    
     record_id = str(record["_id"])
+    print(record_id)
 
-    result = db.users_collection.update_one(
+    # 2. Cleanup local DB
+    db.users_collection.update_one(
         {"_id": ObjectId(user_id)}, 
         {"$pull": {"favorites": record_id}}
-    )
-    
-    result = db.calls_collection.delete_one({"user_id": user_id, "original_name": original_name})
-    return result.deleted_count > 0
+    ) 
+    db.calls_collection.delete_one(query)
+
+    # 3. Request to Search Engine
+    search_params = {
+        "user_id": user_id,
+        "original_name": original_name  
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"{SEARCH_SERVICE_URL}/delete", 
+                params={"user_id": user_id, "original_name": original_name}
+            )
+            
+            if response.status_code != 200:
+                print(f"Search server error: {response.status_code} - {response.text}")
+                return False
+                
+    except Exception as e:
+        print(f"Connection to search engine failed: {e}")
+        return False
+        
+    return True
 
 
 def update_call_name_service(user_id: str, original_name: str, new_name: str):

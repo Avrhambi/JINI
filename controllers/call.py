@@ -19,8 +19,9 @@ async def search_call_controller(user_id: str, query: str):
     return await search_calls_service(user_id, query)
  
 
-def delete_call_controller(user_id: str, original_name: str):
-    if not delete_call_service(user_id, original_name):
+async def delete_call_controller(user_id: str, original_name: str):
+    response = await delete_call_service(user_id, original_name)
+    if not response:
         raise HTTPException(status_code=404, detail="Record not found")
     return {"message": "Deleted successfully"}
 
