@@ -160,6 +160,22 @@ def search():
     results = search_engine.search(query, user_id=user_id)
     return jsonify({"results": results})
 
+@app.route("/delete", methods=['DELETE'])
+def delete():
+    """Endpoint to delete audio metadata and its vector embeddings"""
+    user_id = request.args.get('user_id')
+    file_name = request.args.get('original_name') 
+    
+    if not user_id or not file_name:
+        return jsonify({"error": "Missing user_id or original_name"}), 400
+        
+    try:
+        storage.delete_record(user_id, file_name)
+        return jsonify({"message": f"File {file_name} deleted successfully"}), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/', methods=['GET'])
 def root():

@@ -10,11 +10,11 @@ class Storage:
         self.db = self.client[db_name]
         
         # creating collections
-        self.collection = self.db["windows"]
+        self.blocks_collection = self.db["windows"]
         self.files_collection = self.db["files"]
         
         # creating indexes
-        self.collection.create_index([("user_id", 1), ("window_text", 1)])
+        self.blocks_collection.create_index([("user_id", 1), ("window_text", 1)])
         self.files_collection.create_index([("user_id", 1), ("file_name", 1)], unique=True)
         
         # setting up FAISS with the size of e5 index
@@ -33,7 +33,7 @@ class Storage:
         self.user_ids = []
         
         # get all documents with only the embedding and user_id fields to minimize memory usage
-        all_docs = list(self.collection.find({}, {"embedding": 1, "_id": 1, "user_id": 1}))
+        all_docs = list(self.blocks_collection.find({}, {"embedding": 1, "_id": 1, "user_id": 1}))
         
         if all_docs:
             embeddings = np.array([doc["embedding"] for doc in all_docs]).astype('float32')
@@ -68,7 +68,7 @@ class Storage:
         file_id = file_doc["_id"]
 
         # remove old blocks for this file and user to prevent duplicates 
-        self.collection.delete_many({"file_id": file_id, "user_id": user_id})
+        self.blocks_collection.delete_many({"file_id": file_id, "user_id": user_id})
 
         # prepare the new blocks with the file_id and user_id for insertion
         payload = []
@@ -91,7 +91,7 @@ class Storage:
         # add to MongoDB and then to FAISS 
         if payload:
             # add new blocks to MongoDB
-            insert_result = self.collection.insert_many(payload)
+            insert_result = self.blocks_collection.insert_many(payload)
             
             # update the in-memory FAISS index and mappings with the new blocks
             emb_np = np.array(new_embeddings).astype('float32')
@@ -106,6 +106,29 @@ class Storage:
             
             print(f"✅ Saved {len(payload)} blocks for file: {file_name} (User: {user_id})")
 
+    def delete_record(self, user_id, file_name):
+            """ 
+            Delete a call record file, its blocks from MongoDB, and refresh the FAISS index
+            """
+            print(f"🗑️ Deleting record: {file_name} for user: {user_id}")
+            
+            # delete from DB
+            file_delete_result = self.files_collection.delete_one({"user_id": user_id, "file_name": file_name})
+            blocks_delete_result = self.blocks_collection.delete_many({"user_id": user_id, "file_name": file_name})
+            
+            if file_delete_result.deleted_count == 0:
+                print(f"⚠️ No record found for {file_name} under user {user_id}")
+                return False
+
+        
+            print(f"🔄 Refreshing FAISS index to maintain consistency...")
+            
+            # rebuild the new faiss index with the remaining records
+            self.index = faiss.IndexFlatIP(384) 
+            self._load_vector_index()
+            
+            print(f"✅ Successfully deleted {file_name} and synchronized FAISS.")
+            return True
 
     def vector_search(self, query_vector, user_id, k=10):
         """
@@ -131,7 +154,7 @@ class Storage:
         if not candidate_ids: return []
 
          # 2. pull the user-specific candidate documents 
-        cursor = self.collection.find(
+        cursor = self.blocks_collection.find(
             {"_id": {"$in": candidate_ids}, "user_id": user_id},
             {"window_text": 1, 
              "user_id": 1, 
@@ -170,7 +193,7 @@ class Storage:
             "sentences": 1
         }
         
-        results = list(self.collection.find(query_filter, projection).limit(limit))
+        results = list(self.blocks_collection.find(query_filter, projection).limit(limit))
         
         for res in results:
             res["origin"] = "exact"
