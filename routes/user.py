@@ -13,14 +13,6 @@ def delete_user_account(current_user: User = Depends(verify_token)):
     return delete_user_controller(current_user.id)
 
 
-@user_router.put("/edit")
-def edit_user_profile(
-    updated_data: UserUpdate, 
-    current_user: User = Depends(verify_token)
-):
-   """Edit user profile using the controller."""
-   return edit_user_profile_controller(current_user.id, updated_data)
-
 
 
 

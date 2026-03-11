@@ -78,27 +78,3 @@ def delete_user_service(user_id: str) -> bool:
     return result.deleted_count > 0 # True if a user was deleted
 
 
-def update_user_service(user_id: str, update_data: dict):
-    """
-    Updates specific user fields (username/password) in MongoDB.
-    Expects update_data to already contain the hashed password if changed.
-    """
-    # Filter out None values to prevent overwriting existing data with nulls
-    clean_data = {k: v for k, v in update_data.items() if v is not None}
-    
-    if not clean_data:
-        return None
-
-    # Perform the update in the 'users' collection
-    result = db.users_collection.find_one_and_update(
-        {"_id": ObjectId(user_id)},
-        {"$set": clean_data},
-        return_document=True  # Returns the updated document instead of the old one
-    )
-    
-    # 3. Handle Pydantic compatibility by converting ObjectId to string
-    if result:
-        result["_id"] = str(result["_id"]) 
-        return result
-        
-    return None
