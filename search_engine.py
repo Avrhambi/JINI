@@ -159,7 +159,7 @@ class SearchEngine:
         return list(unique_matches.values())
 
 
-    def rerank_results(self, query, user_id, candidates):
+    def rerank_results(self, query, user_id, candidates, k):
         """
         performs the re-ranking of candidate blocks by sending them to the Gemini judge agent, 
         applying strict thresholding, and then deduplicating matches at the sentence level 
@@ -179,15 +179,16 @@ class SearchEngine:
         all_matches = []
 
         # parallelize the judge agent calls for efficiency
-        with ThreadPoolExecutor(max_workers=min(len(targets), 12)) as executor:
+        with ThreadPoolExecutor(max_workers=min(len(targets), 15)) as executor:
             list_of_results = list(executor.map(lambda c: self.gemini_judge_worker(query, c, user_id), targets))
             for sublist in list_of_results:
                 if sublist:
                     all_matches.extend(sublist)
         
         final_results = self._deduplicate_sentences(all_matches)
-        final_results = sorted(final_results, key=lambda x: x["start"])
-        return final_results
+        top_k_by_score = sorted(final_results, key=lambda x: x['score'], reverse=True)[:k]  # return only top k
+        chronological_final = sorted(top_k_by_score, key=lambda x: x["start"])
+        return chronological_final
 
     def search(self, query: str, user_id:str, top_k=5):
         refined = self.refine_query(query)
@@ -208,5 +209,5 @@ class SearchEngine:
             return []
 
         # 3. re-ranking of candidates 
-        return self.rerank_results(query, user_id, candidates)[:top_k]
+        return self.rerank_results(query, user_id, candidates, top_k)
 

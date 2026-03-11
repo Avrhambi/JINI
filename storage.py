@@ -37,11 +37,16 @@ class Storage:
         
         if all_docs:
             embeddings = np.array([doc["embedding"] for doc in all_docs]).astype('float32')
+
+            # Ensure the array is 2D (rows, dimensions) even if there is only 1 record
+            if embeddings.ndim == 1:
+                embeddings = embeddings.reshape(1, -1)
+
             self.index.add(embeddings)
             self.doc_ids = [str(doc["_id"]) for doc in all_docs]
             self.user_ids = [str(doc.get("user_id")) for doc in all_docs]
             
-        print(f"✅ Loaded {len(self.doc_ids)} blocks into FAISS.")
+        print(f"Loaded {len(self.doc_ids)} blocks into FAISS.")
 
 
     def save_windows(self, file_name, blocks, embeddings, full_transcript, user_id):
@@ -103,8 +108,10 @@ class Storage:
             new_ids = [str(_id) for _id in insert_result.inserted_ids]
             self.doc_ids.extend(new_ids)
             self.user_ids.extend([str(user_id)] * len(new_ids))
+            self.index = faiss.IndexFlatIP(384) # Reset the index
+            self._load_vector_index() # Reload all active vectors from DB
             
-            print(f"✅ Saved {len(payload)} blocks for file: {file_name} (User: {user_id})")
+            print(f"Saved and synchronized {len(payload)} blocks for file: {file_name} (User: {user_id})")
 
     def delete_record(self, user_id, file_name):
             """ 

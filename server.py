@@ -160,6 +160,7 @@ def search():
     results = search_engine.search(query, user_id=user_id)
     return jsonify({"results": results})
 
+
 @app.route("/delete", methods=['DELETE'])
 def delete():
     """Endpoint to delete audio metadata and its vector embeddings"""
