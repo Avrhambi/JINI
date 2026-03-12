@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from services.user import delete_user_service, update_user_service
+from services.user import delete_user_service
 from models.user import UserUpdate
 from utils.auth_utils import hash_password
 

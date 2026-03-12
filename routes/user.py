@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from middleware.auth import verify_token
 from models.user import User, UserUpdate
-from controllers.user import delete_user_controller, edit_user_profile_controller
+from controllers.user import delete_user_controller
 
 
 user_router = APIRouter()
