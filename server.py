@@ -1,5 +1,6 @@
 # local/server.py
 import os
+from pydoc import text
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from faster_whisper import WhisperModel
@@ -158,6 +159,15 @@ def search():
         return jsonify({"error": "Missing query or user_id"}), 400
         
     results = search_engine.search(query, user_id=user_id)
+    if os.path.exists("search_result.txt"):
+        os.remove("search_result.txt")
+
+    with open("search_result.txt", "a", encoding="utf-8") as f:
+        for r in results:
+            f.write(f"sentence: {r['text']}\n")
+            f.write(f"score: {r['score']}\n")
+            f.write(f"reasoning: {r['reasoning']}\n\n")
+            
     return jsonify({"results": results})
 
 
