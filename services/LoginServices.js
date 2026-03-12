@@ -24,6 +24,7 @@ export const performGoogleLogin = async () => {
     });
 
     const data = await response.json();
+    console.log("Google Login Response:", data);
 
     if (response.ok) {
       return {
