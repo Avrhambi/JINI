@@ -1,185 +1,79 @@
-# JINI
+# JINI — Frontend (Mobile App)
 
-A React Native application built with Expo for managing calls and audio recording with Google authentication and real-time listening capabilities.
+React Native (Expo) mobile client for JINI. Part of the
+[JINI final project](../README.md) — B.Sc. Computer Science, Bar-Ilan University.
 
-## Project Overview
+The app handles authentication, call recording/upload, playback, and live "listen"
+sessions. It talks only to the [backend API](../backend/README.md).
 
-JINI is a mobile application that provides:
-- User authentication (Login/Signup with Google Sign-In support)
-- Call management and logging
-- Audio recording and playback
-- Real-time listening services
-- Secure token management
+## Tech stack
 
-## Technology Stack
+- **React Native 0.79.6** with **Expo 53**
+- **React Navigation** (native stack)
+- **Google Sign-In** + Expo Auth Session
+- **Expo AV** for audio record/playback
+- **AsyncStorage / Secure Store / SQLite** for local state and tokens
+- **EAS Build** + Gradle for Android
+- Custom Android native module `CallLogModule` for call-log access
 
-- **Framework**: React Native 0.79.6 with Expo 53.0.27
-- **Navigation**: React Navigation (Native Stack)
-- **Authentication**: Google Sign-In, Expo Auth Session
-- **State Management**: React Context API
-- **Storage**: AsyncStorage, Secure Store, SQLite
-- **Audio**: Expo AV
-- **UI Components**: React Native, Expo Vector Icons, Linear Gradient
-- **Build Tools**: Expo EAS, Gradle (Android)
+## Project structure
 
-## Project Structure
+```
+frontend/
+├── App.js                  # app entry
+├── index.js                # bootstrap
+├── app.json                # Expo config
+├── eas.json                # EAS build/update config
+├── Navigation/
+│   ├── Main.js             # navigator
+│   └── screens/            # Home, Listen, Login, Signup
+├── services/               # per-screen API logic (Home/Listen/Login/Signup)
+├── utils/
+│   ├── api.js              # API client
+│   ├── auth.js / AuthContext.js
+│   ├── permissions.js
+│   └── RecordManager.js    # recording lifecycle
+├── assets/                 # audio, fonts
+├── android/                # native project + CallLogModule
+└── __tests__/
+```
 
-### Core Files
-- **App.js** - Main application entry point
-- **index.js** - Application bootstrap
-- **app.json** - Expo configuration
-- **package.json** - Dependencies and scripts
-- **eas.json** - EAS Build configuration
-- **react-native.config.js** - React Native configuration
-
-### Directories
-
-#### `/Navigation`
-Navigation configuration and screen definitions
-- **Main.js** - Main navigation setup
-- **screens/** - Application screens
-  - `Home.js` - Home screen
-  - `Listen.js` - Listening features
-  - `Login.js` - User login
-  - `Signup.js` - User registration
-
-#### `/services`
-Business logic and API communication
-- **HomeServices.js** - Home screen services
-- **ListenServices.js** - Listening services
-- **LoginServices.js** - Authentication services
-- **SignupServices.js** - Registration services
-
-#### `/utils`
-Utility functions and helpers
-- **api.js** - API client configuration
-- **auth.js** - Authentication utilities
-- **AuthContext.js** - React Context for authentication state
-- **permissions.js** - Permission handling
-- **RecordManager.js** - Audio recording management
-
-#### `/assets`
-Static resources
-- **audio/** - Audio files
-- **fonts/** - Custom fonts
-
-#### `/android`
-Android-specific configuration and native code
-- **app/src/main/java/com/anonymous/JINI/** - Native modules
-  - `MainActivity.kt` - Android main activity
-  - `MainApplication.kt` - Android application class
-  - `CallLogModule.java` - Call log native module
-  - Corresponding package files for each module
-- **res/** - Android resources (drawables, layouts, values)
-
-## Getting Started
+## Getting started
 
 ### Prerequisites
-- Node.js and npm
+
+- Node.js + npm
 - Expo CLI
-- Android SDK (for Android development)
-- A Google Sign-In project configured
+- Android SDK (for Android builds)
+- A configured Google Sign-In project
 
-### Installation
+### Install & run
 
-1. Install dependencies:
 ```bash
 npm install
+# create .env.local with API base URL + Google Sign-In credentials
+npm start            # Expo dev server
+npm run android      # run on Android emulator/device
 ```
 
-2. Set up environment variables:
-Create a `.env.local` file with your API configuration and Google Sign-In credentials.
+### Build & distribute
 
-### Development
-
-Start the development server:
-```bash
-npm start
-```
-
-For specific platforms:
-```bash
-npm run android       # Run on Android emulator
-npm run ios          # Run on iOS simulator
-npm run web          # Run on web
-```
-
-Development mode with live reloading:
-```bash
-npm run dev
-```
-
-## Build and Deployment
-
-### Android Build
 ```bash
 eas build --platform android
+eas update --branch preview --message "…"
 ```
-
-### Update Distribution
-```bash
-eas update --branch preview --message "Your message"
-```
-
-## Features
-
-- **Authentication**: Secure user login and registration with Google Sign-In
-- **Call Management**: Track and log calls with native integration
-- **Audio Recording**: Record and playback audio files
-- **Real-time Listening**: Live listening capabilities with progress tracking
-- **Secure Storage**: Encrypted token storage with Secure Store
-- **Cross-platform**: Support for Android and iOS
-
-## Key Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| expo | ~53.0.27 | React Native framework |
-| react-native | 0.79.6 | Core React Native |
-| @react-navigation/native | ^7.1.6 | Navigation |
-| expo-av | ~15.1.7 | Audio/Video |
-| @react-native-google-signin/google-signin | ^16.1.1 | Google authentication |
-| expo-sqlite | ~15.2.14 | Local database |
-| react-native-fs | ^2.20.0 | File system access |
-
-## Android Native Modules
-
-The project includes custom native module for extended functionality:
-
-**CallLogModule/CallLogPackage** - Manages call logging
 
 ## Permissions
 
-The application requires:
-- Camera access
-- Microphone access
-- Call log access (Android)
-- File system access
+Camera, microphone, call-log (Android), and file-system access — requested through
+`utils/permissions.js`.
 
-Permissions are managed through `utils/permissions.js`
+## Tests
 
-## Configuration
+```bash
+npm test
+```
 
-- **app.json** - Expo app configuration including splash screens, icons, and platform-specific settings
-- **android/** - Android build configuration
-- **eas.json** - Build and update configuration
+## Docs
 
-## Notes
-
-- The project uses Expo's managed workflow for simplified development
-- Android build artifacts are generated in `android/build/`
-- Sensitive files (keystores, certificates) are excluded via .gitignore
-- EAS auto-fingerprint is skipped in build scripts
-
-## Version
-
-- **App Version**: 1.0.0
-- **Package**: com.anonymous.JINI
-- **Android Version Code**: 1
-
-## Support
-
-For issues and questions, refer to:
-- [React Native Documentation](https://reactnative.dev)
-- [Expo Documentation](https://docs.expo.dev)
-- [React Navigation](https://reactnavigation.org)
+- [React Native](https://reactnative.dev) · [Expo](https://docs.expo.dev) · [React Navigation](https://reactnavigation.org)
