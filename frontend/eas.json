@@ -1,0 +1,38 @@
+{
+  "cli": {
+    "version": ">= 16.19.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
+        "GRADLE_USER_HOME": "/tmp/gradle-home"
+      },
+      "channel": "preview"
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
