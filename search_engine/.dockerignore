@@ -1,0 +1,11 @@
+# secrets never enter the build context
+.env
+*.env
+
+# local artifacts
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+search_result.txt
+temp_*
