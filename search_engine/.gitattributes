@@ -1,0 +1,2 @@
+# shell scripts run inside a Linux container: a CRLF checkout breaks the shebang
+*.sh text eol=lf
