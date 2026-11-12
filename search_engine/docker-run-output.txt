@@ -1,0 +1,33 @@
+===== Environment variables (secrets masked) =====
+FLASH_2.5_API_KEY=***
+FLASH_2_API_KEY=***
+GPG_KEY=***
+HF_HOME=/opt/hf-cache
+HF_HUB_OFFLINE=1
+HOME=/root
+HOSTNAME=6d406dd1ddd3
+LANG=C.UTF-8
+PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PIP_NO_CACHE_DIR=1
+PWD=/app
+PYTHONUNBUFFERED=1
+PYTHON_GET_PIP_SHA256=bc37786ec99618416cc0a0ca32833da447f4d91ab51d2c138dd15b7af21e8e9a
+PYTHON_GET_PIP_URL=https://github.com/pypa/get-pip/raw/def4aec84b261b939137dd1c69eff0aabb4a7bf4/public/get-pip.py
+PYTHON_PIP_VERSION=24.0
+PYTHON_SETUPTOOLS_VERSION=65.5.1
+PYTHON_VERSION=3.11.9
+REFINE_PROMT=Refine the user query
+SHLVL=1
+SYSTEM_INSTRUCTIONS=You are a search assistant
+_=/usr/bin/env
+===== Transcribing sample recording =====
+⏳ Loading Whisper model ivrit-ai/whisper-large-v3-turbo-ct2...
+🎙️ Transcribing /app/tests/recordings/user_a_private.wav...
+[   0.00 ->    3.92] אכלתם גם?
+[   4.34 ->    5.16] כן.
+[   5.82 ->    6.38] איך היה?
+[  11.06 ->   13.96] מה אגיד ומה אומר?
+[  13.96 ->   31.72] את יודעת שזה נראה לי בגלל שאנחנו לא רואים אור יום?
+[  34.04 ->   38.34] כי גם אני הרגשתי פתאום שנהיה לי פיגמנטציה מתחת לעיניים ובשפם, ואף פעם לא הייתה...
+✅ Done: 39.0s of audio in 38.7s
+
