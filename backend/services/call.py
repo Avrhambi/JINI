@@ -54,9 +54,7 @@ async def search_calls_service(user_id: str, query: str):
             f_name = res.get('file_name', 'unknown_file')
             start_time = res.get('start', 0)
 
-            if f_name not in grouped:
-                grouped[f_name] = {"file_name": f_name, "time_stamps": []}
-
+            grouped[f_name] = {"file_name": f_name, "time_stamps": []}
             grouped[f_name]["time_stamps"].append(start_time)
         
         return list(grouped.values())
