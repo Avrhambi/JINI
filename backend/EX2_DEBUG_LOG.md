@@ -25,6 +25,11 @@ from the backend could have shown the bug.
 
 **Did I find the bug?** No.
 
+**After the logged session:** the connection errors in rows 1 and 4 made me
+realize the search engine wasn't running. I started it and kept testing, but I
+never searched for a query that matches several segments of the same call, so
+the bug still didn't show.
+
 **What the bug was (from ANSWER.md):** in `backend/services/call.py` →
 `search_calls_service`, the guard `if f_name not in grouped:` was removed, so
 the per-call entry is re-created for every search result. When the search
@@ -32,10 +37,11 @@ engine returns several relevant segments from the same call, only the last
 timestamp is kept.
 
 **What would have shortened the path:**
-1. **Run the full path the feature uses.** I ran the backend without the search
-   engine and with no uploaded calls, so search failed before reaching the
-   buggy code. With the search engine up and one call uploaded where a phrase
-   repeats, the missing timestamps would have shown on the first search.
+1. **Run the full path from the start, and test the edge cases.** For most of
+   the session the search engine wasn't running, so search failed before
+   reaching the buggy code. Even once it was up, I only tried simple searches.
+   Uploading a call where a phrase repeats and searching for it would have
+   shown the missing timestamps immediately.
 2. **Follow the data path, not only the error path.** In row 4 I was already in
    the right function but only examined its `except` branch; the grouping loop
    just above it was the bug.
